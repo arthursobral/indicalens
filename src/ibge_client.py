@@ -71,6 +71,26 @@ SERIES = [
         "unit": "%",
         "sidra_table": 6402,
     },
+    {
+        "name": "POBREZA_LINHA_INTERNACIONAL",
+        "label": "Síntese de Indicadores Sociais - taxa de pobreza pela linha internacional (proporção da população abaixo da linha de pobreza internacional)",
+        "agregado": 5817,
+        "variavel": 9617,
+        "classificacao": None,
+        "period_kind": "annual",
+        "unit": "%",
+        "sidra_table": 5817,
+    },
+    {
+        "name": "POBREZA_LINHA_NACIONAL",
+        "label": "Síntese de Indicadores Sociais - taxa de pobreza pela linha nacional (proporção da população abaixo da linha de pobreza nacional)",
+        "agregado": 5877,
+        "variavel": 9948,
+        "classificacao": None,
+        "period_kind": "annual",
+        "unit": "%",
+        "sidra_table": 5877,
+    },
 ]
 
 
@@ -92,6 +112,8 @@ def fetch_series(agregado: int, variavel: int, periodos: str = "-24",
 
 def format_period(period_kind: str, period: str) -> str:
     """Turns an IBGE period code into a human-readable Portuguese phrase."""
+    if period_kind == "annual":
+        return period
     year, tail = period[:4], period[4:]
     if period_kind == "monthly":
         return f"{_MONTHS_PT[tail]} de {year}"
