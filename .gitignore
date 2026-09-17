@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# "brain" da memoria de projeto — local, nao versionado (ver docs/00-overview.md)
+docs/

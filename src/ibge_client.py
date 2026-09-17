@@ -1,0 +1,81 @@
+"""Minimal client for the IBGE aggregated-data API (SIDRA), no API key required.
+
+Uses servicodados.ibge.gov.br/api/v3/agregados instead of apisidra.ibge.gov.br
+because the latter sits behind a Cloudflare bot challenge that blocks plain
+HTTP clients; the v3 endpoint returns the same underlying SIDRA data as JSON.
+"""
+
+import requests
+
+BASE_URL = "https://servicodados.ibge.gov.br/api/v3/agregados"
+
+_MISSING_VALUES = {"...", "-", "X", ".."}
+
+_MONTHS_PT = {
+    "01": "janeiro", "02": "fevereiro", "03": "março", "04": "abril",
+    "05": "maio", "06": "junho", "07": "julho", "08": "agosto",
+    "09": "setembro", "10": "outubro", "11": "novembro", "12": "dezembro",
+}
+
+# Registry of series ingested in Week 1. Each maps to one IBGE aggregate
+# table + variable (optionally filtered to one classification category).
+SERIES = [
+    {
+        "name": "IPCA_VARIACAO_MENSAL",
+        "label": "IPCA - variação mensal",
+        "agregado": 1737,
+        "variavel": 63,
+        "classificacao": None,
+        "period_kind": "monthly",
+        "unit": "%",
+        "sidra_table": 1737,
+    },
+    {
+        "name": "PIB_VARIACAO_TRIMESTRAL",
+        "label": "PIB a preços de mercado - taxa trimestral (mesmo período do ano anterior)",
+        "agregado": 5932,
+        "variavel": 6561,
+        "classificacao": "11255[90707]",
+        "period_kind": "quarterly",
+        "unit": "%",
+        "sidra_table": 5932,
+    },
+    {
+        "name": "PNAD_TAXA_DESOCUPACAO",
+        "label": "PNAD Contínua - taxa de desocupação",
+        "agregado": 6381,
+        "variavel": 4099,
+        "classificacao": None,
+        "period_kind": "moving_quarter",
+        "unit": "%",
+        "sidra_table": 6381,
+    },
+]
+
+
+def fetch_series(agregado: int, variavel: int, periodos: str = "-24",
+                  classificacao: str | None = None, localidade: str = "1") -> list[tuple[str, str]]:
+    """Returns [(period_code, value), ...] sorted as the API returns them (chronological)."""
+    url = f"{BASE_URL}/{agregado}/periodos/{periodos}/variaveis/{variavel}"
+    params = {"localidades": f"N1[{localidade}]"}
+    if classificacao:
+        params["classificacao"] = classificacao
+
+    resp = requests.get(url, params=params, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+
+    serie = data[0]["resultados"][0]["series"][0]["serie"]
+    return [(period, value) for period, value in serie.items() if value not in _MISSING_VALUES]
+
+
+def format_period(period_kind: str, period: str) -> str:
+    """Turns an IBGE period code into a human-readable Portuguese phrase."""
+    year, tail = period[:4], period[4:]
+    if period_kind == "monthly":
+        return f"{_MONTHS_PT[tail]} de {year}"
+    if period_kind == "quarterly":
+        return f"{int(tail)}º trimestre de {year}"
+    if period_kind == "moving_quarter":
+        return f"trimestre móvel encerrado em {_MONTHS_PT[tail]} de {year}"
+    raise ValueError(f"unknown period_kind: {period_kind}")
