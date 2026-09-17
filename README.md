@@ -15,7 +15,7 @@ para Selic e cambio.
 
 ## Status
 
-Semana 2 de 12 em andamento: alem da ingestao tabular da semana 1 (IPCA, PIB,
+Semana 2 de 12 concluida: alem da ingestao tabular da semana 1 (IPCA, PIB,
 desocupacao), agora tambem ingerimos texto corrido de verdade — os
 comentarios analiticos que o IBGE publica a cada trimestre sobre a PNAD
 Continua — para que o agente responda perguntas mais descritivas, nao so
@@ -39,6 +39,8 @@ pergunta do usuario --> src/qa_agent.py (LangGraph: retrieve -> generate) <-----
 - `src/notes.py`: baixa o caderno trimestral "Indicadores IBGE" (PDF), extrai
   a secao de Comentarios e quebra em trechos citaveis por tema (ex: "Taxa de
   Desocupacao", "Populacao Ocupada").
+
+O agente de QA (`src/qa_agent.py`) e um grafo LangGraph de 2 nos:
 
 - **retrieve**: embeda a pergunta e busca os chunks mais proximos por
   similaridade de cosseno no Postgres/pgvector.
