@@ -35,7 +35,8 @@ pergunta do usuario --> src/qa_agent.py (LangGraph: retrieve -> generate) <-----
 ```
 
 - `src/ingest.py`: dados tabulares (IPCA, PIB, desocupacao, rendimento,
-  informalidade) viram uma frase citavel por ponto de dado.
+  informalidade, taxa de pobreza pelas linhas internacional e nacional)
+  viram uma frase citavel por ponto de dado.
 - `src/notes.py`: baixa o caderno trimestral "Indicadores IBGE" (PDF), extrai
   a secao de Comentarios e quebra em trechos citaveis por tema (ex: "Taxa de
   Desocupacao", "Populacao Ocupada").
