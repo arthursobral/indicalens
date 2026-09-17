@@ -24,9 +24,13 @@ def build_rows(periodos: str = "-24") -> list[dict]:
         )
         for period, value in points:
             when = format_period(series["period_kind"], period)
+            formatted_value = (
+                f"{series['unit']} {value}" if series.get("unit_position") == "prefix"
+                else f"{value}{series['unit']}"
+            )
             content = (
                 f"Segundo o IBGE (SIDRA, tabela {series['sidra_table']}), "
-                f"{series['label']} em {when} foi de {value}{series['unit']}."
+                f"{series['label']} em {when} foi de {formatted_value}."
             )
             citation = f"IBGE/SIDRA tabela {series['sidra_table']} - {series['label']} - {when}"
             rows.append({

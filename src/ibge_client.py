@@ -50,6 +50,27 @@ SERIES = [
         "unit": "%",
         "sidra_table": 6381,
     },
+    {
+        "name": "PNAD_RENDIMENTO_MEDIO_REAL",
+        "label": "PNAD Contínua - rendimento médio mensal real",
+        "agregado": 6390,
+        "variavel": 5933,
+        "classificacao": None,
+        "period_kind": "moving_quarter",
+        "unit": "R$",
+        "unit_position": "prefix",
+        "sidra_table": 6390,
+    },
+    {
+        "name": "PNAD_TAXA_INFORMALIDADE",
+        "label": "PNAD Contínua - taxa de informalidade",
+        "agregado": 6402,
+        "variavel": 12466,
+        "classificacao": "86[95251]",
+        "period_kind": "moving_quarter",
+        "unit": "%",
+        "sidra_table": 6402,
+    },
 ]
 
 
