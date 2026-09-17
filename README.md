@@ -15,19 +15,30 @@ para Selic e cambio.
 
 ## Status
 
-Semana 1 de 12: ingestao do IBGE, banco vetorial e um agente de QA basico.
-Ver [docs/03-roadmap.md](docs/03-roadmap.md) para o plano completo (pasta
-local, nao versionada — ver secao Docs abaixo).
+Semana 2 de 12 em andamento: alem da ingestao tabular da semana 1 (IPCA, PIB,
+desocupacao), agora tambem ingerimos texto corrido de verdade — os
+comentarios analiticos que o IBGE publica a cada trimestre sobre a PNAD
+Continua — para que o agente responda perguntas mais descritivas, nao so
+"qual foi o numero". Ver [docs/03-roadmap.md](docs/03-roadmap.md) para o
+plano completo (pasta local, nao versionada — ver secao Docs abaixo).
 
-## Arquitetura (semana 1)
+## Arquitetura
 
 ```
-IBGE SIDRA API --> src/ingest.py --> embeddings locais (MiniLM) --> pgvector (Supabase)
-                                                                        |
-pergunta do usuario --> src/qa_agent.py (LangGraph: retrieve -> generate) <-'
+IBGE SIDRA API ------------> src/ingest.py --\
+                                               +--> embeddings locais (MiniLM) --> pgvector (Supabase)
+IBGE (comentarios em PDF) -> src/notes.py ----/                                        |
+                                                                                        |
+pergunta do usuario --> src/qa_agent.py (LangGraph: retrieve -> generate) <-------------'
                                               |
                                         Groq / Ollama (LLM de sintese)
 ```
+
+- `src/ingest.py`: dados tabulares (IPCA, PIB, desocupacao, rendimento,
+  informalidade) viram uma frase citavel por ponto de dado.
+- `src/notes.py`: baixa o caderno trimestral "Indicadores IBGE" (PDF), extrai
+  a secao de Comentarios e quebra em trechos citaveis por tema (ex: "Taxa de
+  Desocupacao", "Populacao Ocupada").
 
 - **retrieve**: embeda a pergunta e busca os chunks mais proximos por
   similaridade de cosseno no Postgres/pgvector.
@@ -48,9 +59,11 @@ pergunta do usuario --> src/qa_agent.py (LangGraph: retrieve -> generate) <-'
    python -m venv .venv
    .venv/Scripts/pip install -r requirements.txt   # Windows
    ```
-4. Ingira os indicadores (ultimos 24 periodos de cada serie por padrao):
+4. Ingira os indicadores (ultimos 24 periodos de cada serie por padrao) e o
+   texto dos comentarios do trimestre mais recente:
    ```bash
    python -m src.ingest
+   python -m src.notes
    ```
 5. Pergunte:
    ```bash
@@ -61,4 +74,5 @@ pergunta do usuario --> src/qa_agent.py (LangGraph: retrieve -> generate) <-'
 
 ```bash
 python tests/test_ibge_client.py
+python tests/test_notes.py
 ```
