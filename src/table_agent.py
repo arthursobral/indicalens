@@ -27,6 +27,19 @@ _KEYWORDS = {
     "PME_TAXA_DESEMPREGO_METROPOLITANA": ["pme", "regiões metropolitanas", "regioes metropolitanas", "região metropolitana", "regiao metropolitana"],
 }
 
+# Series whose distinguishing word can appear anywhere in the question, not
+# just glued to "pobreza"/"desemprego" as one exact phrase (e.g. "pobreza
+# PELA LINHA internacional" doesn't contain the literal substring "pobreza
+# internacional"). Checked before the generic keyword loop below, so an
+# explicit qualifier always wins over another series' bare/generic keyword
+# in the same question - see docs/01-decisions.md for two real bugs this
+# already caused (PME vs. PNAD Continua's "desemprego"; poverty
+# internacional vs. nacional's bare "pobreza").
+_PRIORITY_MATCHERS = [
+    ("PME_TAXA_DESEMPREGO_METROPOLITANA", lambda q: any(kw in q for kw in _KEYWORDS["PME_TAXA_DESEMPREGO_METROPOLITANA"])),
+    ("POBREZA_LINHA_INTERNACIONAL", lambda q: "pobreza" in q and "internacional" in q),
+]
+
 # A question naming an indicator isn't necessarily a plain value lookup —
 # "como a desocupação varia por nível de instrução?" names a series but
 # needs the descriptive RAG path, not a bare number. Any of these markers
@@ -49,16 +62,12 @@ def match_series(question: str) -> dict | None:
     q = question.lower()
     if any(marker in q for marker in _ANALYTICAL_MARKERS):
         return None
-    # PME's keywords are checked first: "desemprego da PME" contains both
-    # "desemprego" (PNAD Continua's keyword) and "pme" (PME's) - an explicit
-    # PME/região metropolitana mention must win over the generic national
-    # term, never get silently overridden by it just because PNAD comes
-    # first in SERIES.
-    pme_name = "PME_TAXA_DESEMPREGO_METROPOLITANA"
-    if any(kw in q for kw in _KEYWORDS.get(pme_name, [])):
-        return next(s for s in SERIES if s["name"] == pme_name)
+    priority_names = {name for name, _ in _PRIORITY_MATCHERS}
+    for name, matches in _PRIORITY_MATCHERS:
+        if matches(q):
+            return next(s for s in SERIES if s["name"] == name)
     for series in SERIES:
-        if series["name"] == pme_name:
+        if series["name"] in priority_names:
             continue
         if any(kw in q for kw in _KEYWORDS.get(series["name"], [])):
             return series
