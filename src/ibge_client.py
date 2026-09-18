@@ -11,7 +11,7 @@ BASE_URL = "https://servicodados.ibge.gov.br/api/v3/agregados"
 
 _MISSING_VALUES = {"...", "-", "X", ".."}
 
-_MONTHS_PT = {
+MONTHS_PT = {
     "01": "janeiro", "02": "fevereiro", "03": "março", "04": "abril",
     "05": "maio", "06": "junho", "07": "julho", "08": "agosto",
     "09": "setembro", "10": "outubro", "11": "novembro", "12": "dezembro",
@@ -116,9 +116,9 @@ def format_period(period_kind: str, period: str) -> str:
         return period
     year, tail = period[:4], period[4:]
     if period_kind == "monthly":
-        return f"{_MONTHS_PT[tail]} de {year}"
+        return f"{MONTHS_PT[tail]} de {year}"
     if period_kind == "quarterly":
         return f"{int(tail)}º trimestre de {year}"
     if period_kind == "moving_quarter":
-        return f"trimestre móvel encerrado em {_MONTHS_PT[tail]} de {year}"
+        return f"trimestre móvel encerrado em {MONTHS_PT[tail]} de {year}"
     raise ValueError(f"unknown period_kind: {period_kind}")

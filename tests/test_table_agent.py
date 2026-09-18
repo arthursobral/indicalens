@@ -27,6 +27,15 @@ def test_answer_live():
 
     assert answer("Qual a capital da França?") is None
 
+    # regression: a specific named period must return THAT period's value,
+    # not silently fall back to the most recent one
+    specific = answer("Qual foi a taxa de desocupacao de maio de 2025?")
+    assert specific is not None
+    assert "maio de 2025" in specific["answer"]
+
+    # a specific period we don't have data for must not be guessed either
+    assert answer("Qual foi a taxa de desocupacao em janeiro de 2010?") is None
+
 
 if __name__ == "__main__":
     test_match_series()

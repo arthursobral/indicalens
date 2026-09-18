@@ -10,7 +10,7 @@ simpler than forcing a mis-fit table-QA model into it.
 
 import re
 
-from src.ibge_client import SERIES, fetch_series, format_period
+from src.ibge_client import MONTHS_PT, SERIES, fetch_series, format_period
 
 _KEYWORDS = {
     "IPCA_VARIACAO_MENSAL": ["ipca", "inflação", "inflacao"],
@@ -50,14 +50,26 @@ def match_series(question: str) -> dict | None:
     return None
 
 
-def _extract_period(question: str, series: dict, periods: list[str]) -> str | None:
+def _extract_period(question: str, series: dict) -> str | None:
+    """Parses a period the user actually named, in natural phrasing (e.g.
+    "maio de 2025", not our own generated "trimestre movel encerrado em
+    maio de 2025"). Returns None if the question doesn't name one at all —
+    the caller then uses the most recent point. Does NOT check whether that
+    period is among the ones fetched; the caller decides what to do if not
+    (must not silently substitute a different period).
+    """
     q = question.lower()
     if series["period_kind"] == "annual":
         match = re.search(r"\b(20\d{2})\b", q)
-        return match.group(1) if match and match.group(1) in periods else None
-    for period in periods:
-        if format_period(series["period_kind"], period).lower() in q:
-            return period
+        return match.group(1) if match else None
+    if series["period_kind"] == "quarterly":
+        match = re.search(r"(\d)\s*[ºo°]?\s*trimestre\s*de\s*(20\d{2})", q)
+        return f"{match.group(2)}{int(match.group(1)):02d}" if match else None
+    # monthly / moving_quarter: both keyed "YYYYMM", named as "<mes> de <ano>"
+    for month_num, month_name in MONTHS_PT.items():
+        match = re.search(rf"\b{month_name}\b[^0-9]{{0,10}}(20\d{{2}})", q)
+        if match:
+            return f"{match.group(1)}{month_num}"
     return None
 
 
@@ -69,21 +81,26 @@ def _format_value(series: dict, value: str) -> str:
 
 def answer(question: str) -> dict | None:
     """Returns {"answer": str, "citation": str} or None if the question
-    doesn't name a known series (caller should fall back to vector RAG).
+    doesn't name a known series, or names a specific period we don't have
+    data for (caller should fall back to vector RAG rather than get a
+    silently wrong answer for a different period).
     """
     series = match_series(question)
     if series is None:
         return None
 
-    points = fetch_series(series["agregado"], series["variavel"], "-24", series["classificacao"])
+    points = fetch_series(series["agregado"], series["variavel"], "-60", series["classificacao"])
     if not points:
         return None
+    values = dict(points)
 
-    period = _extract_period(question, series, [p for p, _ in points])
-    if period is None:
+    requested = _extract_period(question, series)
+    if requested is None:
         period, value = points[-1]  # no period named -> most recent, decided by us, not a model
+    elif requested in values:
+        period, value = requested, values[requested]
     else:
-        value = dict(points)[period]
+        return None  # a specific period was named but we don't have it - don't guess
 
     when = format_period(series["period_kind"], period)
     return {
