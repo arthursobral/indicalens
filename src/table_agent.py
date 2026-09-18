@@ -59,15 +59,16 @@ def _extract_period(question: str, series: dict) -> str | None:
     (must not silently substitute a different period).
     """
     q = question.lower()
+    year = r"(19\d{2}|20\d{2})"  # IBGE series here only go back to 1979
     if series["period_kind"] == "annual":
-        match = re.search(r"\b(20\d{2})\b", q)
+        match = re.search(rf"\b{year}\b", q)
         return match.group(1) if match else None
     if series["period_kind"] == "quarterly":
-        match = re.search(r"(\d)\s*[ºo°]?\s*trimestre\s*de\s*(20\d{2})", q)
+        match = re.search(rf"(\d)\s*[ºo°]?\s*trimestre\s*de\s*{year}", q)
         return f"{match.group(2)}{int(match.group(1)):02d}" if match else None
     # monthly / moving_quarter: both keyed "YYYYMM", named as "<mes> de <ano>"
     for month_num, month_name in MONTHS_PT.items():
-        match = re.search(rf"\b{month_name}\b[^0-9]{{0,10}}(20\d{{2}})", q)
+        match = re.search(rf"\b{month_name}\b[^0-9]{{0,10}}{year}", q)
         if match:
             return f"{match.group(1)}{month_num}"
     return None
@@ -89,7 +90,7 @@ def answer(question: str) -> dict | None:
     if series is None:
         return None
 
-    points = fetch_series(series["agregado"], series["variavel"], "-60", series["classificacao"])
+    points = fetch_series(series["agregado"], series["variavel"], "all", series["classificacao"])
     if not points:
         return None
     values = dict(points)

@@ -94,9 +94,12 @@ SERIES = [
 ]
 
 
-def fetch_series(agregado: int, variavel: int, periodos: str = "-24",
+def fetch_series(agregado: int, variavel: int, periodos: str = "all",
                   classificacao: str | None = None, localidade: str = "1") -> list[tuple[str, str]]:
-    """Returns [(period_code, value), ...] sorted as the API returns them (chronological)."""
+    """Returns [(period_code, value), ...] sorted as the API returns them
+    (chronological). `periodos` follows the IBGE API convention: "all" for
+    the full history, or "-N" for the last N periods.
+    """
     url = f"{BASE_URL}/{agregado}/periodos/{periodos}/variaveis/{variavel}"
     params = {"localidades": f"N1[{localidade}]"}
     if classificacao:

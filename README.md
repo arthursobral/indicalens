@@ -67,8 +67,9 @@ RAG vetorial de sempre (retrieve -> generate).
    python -m venv .venv
    .venv/Scripts/pip install -r requirements.txt   # Windows
    ```
-4. Ingira os indicadores (ultimos 24 periodos de cada serie por padrao) e o
-   texto dos comentarios do trimestre mais recente:
+4. Ingira os indicadores (todo o historico disponivel de cada serie por
+   padrao — desde 1979 pro IPCA, por exemplo) e o texto dos comentarios do
+   trimestre mais recente:
    ```bash
    python -m src.ingest
    python -m src.notes

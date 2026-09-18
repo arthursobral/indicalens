@@ -4,8 +4,8 @@ short cited sentence, embed it, and upsert into the pgvector `documents` table.
 Usage:
     python -m src.ingest [periodos]
 
-`periodos` follows the IBGE API convention, e.g. "-24" for the last 24
-periods of each series (default).
+`periodos` follows the IBGE API convention: "all" for the full history of
+each series (default), or "-N" for just the last N periods.
 """
 
 import sys
@@ -15,7 +15,7 @@ from src.embeddings import embed
 from src.ibge_client import SERIES, fetch_series, format_period
 
 
-def build_rows(periodos: str = "-24") -> list[dict]:
+def build_rows(periodos: str = "all") -> list[dict]:
     rows = []
     for series in SERIES:
         points = fetch_series(
@@ -43,7 +43,7 @@ def build_rows(periodos: str = "-24") -> list[dict]:
     return rows
 
 
-def run(periodos: str = "-24") -> int:
+def run(periodos: str = "all") -> int:
     rows = build_rows(periodos)
     embeddings = embed([r["content"] for r in rows])
     for row, vec in zip(rows, embeddings):
@@ -57,6 +57,6 @@ def run(periodos: str = "-24") -> int:
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    periodos = sys.argv[1] if len(sys.argv) > 1 else "-24"
+    periodos = sys.argv[1] if len(sys.argv) > 1 else "all"
     n = run(periodos)
     print(f"Ingeridos/atualizados {n} documentos.")

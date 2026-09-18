@@ -36,6 +36,11 @@ def test_answer_live():
     # a specific period we don't have data for must not be guessed either
     assert answer("Qual foi a taxa de desocupacao em janeiro de 2010?") is None
 
+    # regression: pre-2000 years (IPCA history goes back to 1979) must parse too
+    old = answer("Qual foi o IPCA em dezembro de 1994?")
+    assert old is not None
+    assert "dezembro de 1994" in old["answer"]
+
 
 if __name__ == "__main__":
     test_match_series()
