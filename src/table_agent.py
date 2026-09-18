@@ -20,6 +20,11 @@ _KEYWORDS = {
     "PNAD_TAXA_INFORMALIDADE": ["informalidade", "informal"],
     "POBREZA_LINHA_INTERNACIONAL": ["pobreza internacional"],
     "POBREZA_LINHA_NACIONAL": ["pobreza nacional", "pobreza"],
+    # Deliberately NOT "desemprego"/"desocupacao" alone - those match the
+    # national PNAD Continua series above. PME only covers 6 metro areas
+    # and a different age base (10+ vs 14+), so it only triggers when asked
+    # for explicitly, never as a silent substitute for the national number.
+    "PME_TAXA_DESEMPREGO_METROPOLITANA": ["pme", "regiões metropolitanas", "regioes metropolitanas", "região metropolitana", "regiao metropolitana"],
 }
 
 # A question naming an indicator isn't necessarily a plain value lookup —
@@ -44,7 +49,17 @@ def match_series(question: str) -> dict | None:
     q = question.lower()
     if any(marker in q for marker in _ANALYTICAL_MARKERS):
         return None
+    # PME's keywords are checked first: "desemprego da PME" contains both
+    # "desemprego" (PNAD Continua's keyword) and "pme" (PME's) - an explicit
+    # PME/região metropolitana mention must win over the generic national
+    # term, never get silently overridden by it just because PNAD comes
+    # first in SERIES.
+    pme_name = "PME_TAXA_DESEMPREGO_METROPOLITANA"
+    if any(kw in q for kw in _KEYWORDS.get(pme_name, [])):
+        return next(s for s in SERIES if s["name"] == pme_name)
     for series in SERIES:
+        if series["name"] == pme_name:
+            continue
         if any(kw in q for kw in _KEYWORDS.get(series["name"], [])):
             return series
     return None
@@ -119,7 +134,11 @@ def answer(question: str) -> dict | None:
     if _mentions_multiple_periods(question):
         return None
 
-    points = fetch_series(series["agregado"], series["variavel"], "all", series["classificacao"])
+    points = fetch_series(
+        series["agregado"], series["variavel"], "all", series["classificacao"],
+        nivel_territorial=series.get("nivel_territorial", "N1"),
+        localidade=series.get("localidade", "1"),
+    )
     if not points:
         return None
     values = dict(points)

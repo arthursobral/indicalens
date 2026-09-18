@@ -91,17 +91,43 @@ SERIES = [
         "unit": "%",
         "sidra_table": 5877,
     },
+    {
+        # Fills the pre-2012 gap that PNAD Continua can't (it only starts
+        # 2012-03). NOT the same indicator: PME covered only 6 metro areas
+        # (never Brazil as a whole) and used a 10+ age base vs PNAD
+        # Continua's 14+, so this is kept as an explicitly separate,
+        # differently-labeled series rather than spliced into
+        # PNAD_TAXA_DESOCUPACAO. See docs/01-decisions.md.
+        "name": "PME_TAXA_DESEMPREGO_METROPOLITANA",
+        "label": (
+            "PME (Pesquisa Mensal de Emprego, descontinuada em 2016) - taxa media anual de "
+            "desocupacao, total das 6 regioes metropolitanas (Recife, Salvador, Belo Horizonte, "
+            "Rio de Janeiro, Sao Paulo e Porto Alegre), pessoas de 10 anos ou mais"
+        ),
+        "agregado": 1168,
+        "variavel": 2498,
+        "classificacao": None,
+        "period_kind": "annual",
+        "unit": "%",
+        "sidra_table": 1168,
+        "nivel_territorial": "N110",
+        "localidade": "all",
+    },
 ]
 
 
 def fetch_series(agregado: int, variavel: int, periodos: str = "all",
-                  classificacao: str | None = None, localidade: str = "1") -> list[tuple[str, str]]:
+                  classificacao: str | None = None, nivel_territorial: str = "N1",
+                  localidade: str = "1") -> list[tuple[str, str]]:
     """Returns [(period_code, value), ...] sorted as the API returns them
     (chronological). `periodos` follows the IBGE API convention: "all" for
-    the full history, or "-N" for the last N periods.
+    the full history, or "-N" for the last N periods. `nivel_territorial`/
+    `localidade` default to Brazil (N1[1]); the discontinued PME series
+    uses N110[all] instead (its own special "all metro areas combined"
+    territorial level — see docs/01-decisions.md).
     """
     url = f"{BASE_URL}/{agregado}/periodos/{periodos}/variaveis/{variavel}"
-    params = {"localidades": f"N1[{localidade}]"}
+    params = {"localidades": f"{nivel_territorial}[{localidade}]"}
     if classificacao:
         params["classificacao"] = classificacao
 

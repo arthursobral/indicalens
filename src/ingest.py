@@ -21,6 +21,8 @@ def build_rows(periodos: str = "all") -> list[dict]:
         points = fetch_series(
             series["agregado"], series["variavel"], periodos,
             classificacao=series["classificacao"],
+            nivel_territorial=series.get("nivel_territorial", "N1"),
+            localidade=series.get("localidade", "1"),
         )
         for period, value in points:
             when = format_period(series["period_kind"], period)

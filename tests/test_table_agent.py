@@ -56,6 +56,14 @@ def test_answer_live():
     # answer only the first one (deferred to RAG instead, which can cite both)
     assert answer("Qual foi o IPCA em janeiro de 1998 e de 1999?") is None
 
+    # regression: an explicit PME mention must win even when the question
+    # also contains "desemprego" (PNAD Continua's own keyword) - it must
+    # not silently answer with the national PNAD number instead
+    pme = answer("Qual foi a taxa de desemprego da PME em 2010?")
+    assert pme is not None
+    assert "PME" in pme["answer"] and "2010" in pme["answer"]
+    assert "PNAD" not in pme["answer"]
+
 
 if __name__ == "__main__":
     test_match_series()
