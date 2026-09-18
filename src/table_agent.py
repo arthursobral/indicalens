@@ -50,28 +50,54 @@ def match_series(question: str) -> dict | None:
     return None
 
 
-def _extract_period(question: str, series: dict) -> str | None:
+def _extract_period(question: str, series: dict) -> tuple[str | None, bool]:
     """Parses a period the user actually named, in natural phrasing (e.g.
     "maio de 2025", not our own generated "trimestre movel encerrado em
-    maio de 2025"). Returns None if the question doesn't name one at all —
-    the caller then uses the most recent point. Does NOT check whether that
-    period is among the ones fetched; the caller decides what to do if not
-    (must not silently substitute a different period).
+    maio de 2025").
+
+    Returns (period, referenced):
+    - (code, True): resolved to one exact period.
+    - (None, True): the question DID reference a period (e.g. a bare year
+      "em 1995" for a monthly series, with no month) but not precisely
+      enough to resolve one — caller must not fall back to "most recent"
+      here, that would silently answer a different period than asked.
+    - (None, False): no period referenced at all — caller should use the
+      most recent point.
+
+    Does NOT check whether a resolved period is among the ones fetched;
+    the caller decides what to do if not.
     """
     q = question.lower()
     year = r"(19\d{2}|20\d{2})"  # IBGE series here only go back to 1979
+    year_match = re.search(rf"\b{year}\b", q)
+
     if series["period_kind"] == "annual":
-        match = re.search(rf"\b{year}\b", q)
-        return match.group(1) if match else None
+        return (year_match.group(1), True) if year_match else (None, False)
+
     if series["period_kind"] == "quarterly":
         match = re.search(rf"(\d)\s*[ºo°]?\s*trimestre\s*de\s*{year}", q)
-        return f"{match.group(2)}{int(match.group(1)):02d}" if match else None
+        if match:
+            return f"{match.group(2)}{int(match.group(1)):02d}", True
+        return None, bool(year_match)  # a year alone, with no quarter, is ambiguous
+
     # monthly / moving_quarter: both keyed "YYYYMM", named as "<mes> de <ano>"
     for month_num, month_name in MONTHS_PT.items():
         match = re.search(rf"\b{month_name}\b[^0-9]{{0,10}}{year}", q)
         if match:
-            return f"{match.group(1)}{month_num}"
-    return None
+            return f"{match.group(1)}{month_num}", True
+    return None, bool(year_match)  # a year alone, with no month, is ambiguous
+
+
+def _mentions_multiple_periods(question: str) -> bool:
+    """"IPCA em janeiro de 1998 e de 1999?" wants two data points; this
+    agent only ever resolves and returns one. Silently answering just the
+    first-found period would look like a complete answer when it isn't —
+    counting distinct years mentioned catches this even when the second
+    date elides its month ("e de 1999"), which no single regex would
+    otherwise match as its own "<month> de <year>" period.
+    """
+    years = re.findall(r"\b(?:19\d{2}|20\d{2})\b", question.lower())
+    return len(set(years)) > 1
 
 
 def _format_value(series: dict, value: str) -> str:
@@ -82,12 +108,15 @@ def _format_value(series: dict, value: str) -> str:
 
 def answer(question: str) -> dict | None:
     """Returns {"answer": str, "citation": str} or None if the question
-    doesn't name a known series, or names a specific period we don't have
-    data for (caller should fall back to vector RAG rather than get a
-    silently wrong answer for a different period).
+    doesn't name a known series, names a specific period we don't have data
+    for, or references more than one period (caller should fall back to
+    vector RAG, which can pull multiple chunks into one answer, rather than
+    get a silently wrong or silently incomplete answer).
     """
     series = match_series(question)
     if series is None:
+        return None
+    if _mentions_multiple_periods(question):
         return None
 
     points = fetch_series(series["agregado"], series["variavel"], "all", series["classificacao"])
@@ -95,13 +124,15 @@ def answer(question: str) -> dict | None:
         return None
     values = dict(points)
 
-    requested = _extract_period(question, series)
-    if requested is None:
-        period, value = points[-1]  # no period named -> most recent, decided by us, not a model
-    elif requested in values:
+    requested, referenced = _extract_period(question, series)
+    if requested is not None:
+        if requested not in values:
+            return None  # a specific period was named but we don't have it - don't guess
         period, value = requested, values[requested]
+    elif referenced:
+        return None  # a period was named (e.g. a bare year) but not precisely - don't guess
     else:
-        return None  # a specific period was named but we don't have it - don't guess
+        period, value = points[-1]  # no period named at all -> most recent, decided by us
 
     when = format_period(series["period_kind"], period)
     return {

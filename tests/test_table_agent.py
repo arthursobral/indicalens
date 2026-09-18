@@ -41,6 +41,21 @@ def test_answer_live():
     assert old is not None
     assert "dezembro de 1994" in old["answer"]
 
+    # regression: a bare year with no month, for a monthly/moving-quarter
+    # series, is ambiguous - must decline, not silently answer "most recent"
+    assert answer("Qual foi a taxa de desocupacao em 1995?") is None  # no data either way
+    assert answer("Qual foi a taxa de desocupacao em 2024?") is None  # has data, but no month named
+
+    # same ambiguity for quarterly: a bare year with no quarter number
+    assert answer("Qual foi o PIB em 1999?") is None
+    specific_quarter = answer("Qual foi o PIB no 3 trimestre de 1999?")
+    assert specific_quarter is not None
+    assert "1999" in specific_quarter["answer"]
+
+    # regression: a compound question naming two periods must not silently
+    # answer only the first one (deferred to RAG instead, which can cite both)
+    assert answer("Qual foi o IPCA em janeiro de 1998 e de 1999?") is None
+
 
 if __name__ == "__main__":
     test_match_series()
