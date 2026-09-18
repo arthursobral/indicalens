@@ -13,6 +13,10 @@ create table if not exists documents (
     unique (series, period)
 );
 
+-- Populated by src/indicator_analyst.py (zero-shot classification), null
+-- until that step runs. Only meaningful for source = 'IBGE-PNAD-COMENTARIOS'.
+alter table documents add column if not exists theme text;
+
 -- ponytail: no vector index yet — at a few hundred/thousand rows a sequential
 -- scan for ORDER BY embedding <=> ... is already fast enough, and ivfflat
 -- clusters are trained from whatever data exists at CREATE INDEX time, so

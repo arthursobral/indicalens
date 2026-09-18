@@ -15,23 +15,26 @@ para Selic e cambio.
 
 ## Status
 
-Semana 2 de 12 concluida: alem da ingestao tabular da semana 1 (IPCA, PIB,
-desocupacao), agora tambem ingerimos texto corrido de verdade — os
-comentarios analiticos que o IBGE publica a cada trimestre sobre a PNAD
-Continua — para que o agente responda perguntas mais descritivas, nao so
-"qual foi o numero". Ver [docs/03-roadmap.md](docs/03-roadmap.md) para o
-plano completo (pasta local, nao versionada — ver secao Docs abaixo).
+Semanas 3-4 de 12: alem da ingestao tabular e do texto corrido das semanas
+1-2, agora tem um Table Agent (lookup direto e deterministico pra perguntas
+numericas) e um Indicator Analyst Agent (classifica cada comentario por tema
+via zero-shot). Ver [docs/03-roadmap.md](docs/03-roadmap.md) para o plano
+completo (pasta local, nao versionada — ver secao Docs abaixo).
 
 ## Arquitetura
 
 ```
 IBGE SIDRA API ------------> src/ingest.py --\
                                                +--> embeddings locais (MiniLM) --> pgvector (Supabase)
-IBGE (comentarios em PDF) -> src/notes.py ----/                                        |
-                                                                                        |
-pergunta do usuario --> src/qa_agent.py (LangGraph: retrieve -> generate) <-------------'
-                                              |
-                                        Groq / Ollama (LLM de sintese)
+IBGE (comentarios em PDF) -> src/notes.py ----/         |
+                                                         v
+                                          src/indicator_analyst.py (zero-shot: tema de cada comentario)
+
+pergunta do usuario --> src/qa_agent.py (LangGraph)
+                            |
+                            +--> src/table_agent.py (lookup direto, sem LLM) --> resposta com citacao
+                            |
+                            +--> retrieve (pgvector) --> generate (Groq/Ollama) --> resposta com citacao
 ```
 
 - `src/ingest.py`: dados tabulares (IPCA, PIB, desocupacao, rendimento,
@@ -40,13 +43,15 @@ pergunta do usuario --> src/qa_agent.py (LangGraph: retrieve -> generate) <-----
 - `src/notes.py`: baixa o caderno trimestral "Indicadores IBGE" (PDF), extrai
   a secao de Comentarios e quebra em trechos citaveis por tema (ex: "Taxa de
   Desocupacao", "Populacao Ocupada").
+- `src/indicator_analyst.py`: classifica cada chunk de comentario por tema
+  (emprego, inflacao, PIB, renda, pobreza, informalidade) via zero-shot.
+- `src/table_agent.py`: perguntas numericas sobre uma serie conhecida (ex:
+  "qual foi a taxa de desocupacao mais recente?") sao respondidas por lookup
+  direto na API do IBGE, sem passar pelo LLM.
 
-O agente de QA (`src/qa_agent.py`) e um grafo LangGraph de 2 nos:
-
-- **retrieve**: embeda a pergunta e busca os chunks mais proximos por
-  similaridade de cosseno no Postgres/pgvector.
-- **generate**: manda os chunks recuperados (cada um com sua citacao) pro LLM
-  e exige que a resposta cite as fontes numeradas.
+O agente de QA (`src/qa_agent.py`) e um grafo LangGraph com roteamento: tenta
+o Table Agent primeiro; se a pergunta nao citar uma serie conhecida, cai pro
+RAG vetorial de sempre (retrieve -> generate).
 
 ## Setup
 
@@ -67,10 +72,12 @@ O agente de QA (`src/qa_agent.py`) e um grafo LangGraph de 2 nos:
    ```bash
    python -m src.ingest
    python -m src.notes
+   python -m src.indicator_analyst
    ```
 5. Pergunte:
    ```bash
    python -m src.qa_agent "Qual foi a variacao mensal do IPCA no ultimo mes disponivel?"
+   python -m src.qa_agent "Qual foi a taxa de desocupacao mais recente?"
    ```
 
 ## Testes
@@ -78,4 +85,6 @@ O agente de QA (`src/qa_agent.py`) e um grafo LangGraph de 2 nos:
 ```bash
 python tests/test_ibge_client.py
 python tests/test_notes.py
+python tests/test_table_agent.py
+python tests/test_indicator_analyst.py
 ```
