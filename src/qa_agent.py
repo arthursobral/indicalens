@@ -32,7 +32,13 @@ class State(TypedDict):
 
 
 def try_table_agent(state: State) -> dict:
-    result = table_agent.answer(state["question"])
+    try:
+        result = table_agent.answer(state["question"])
+    except Exception:
+        # table_agent hits the live IBGE API on every call; a transient
+        # network/API failure here should fall back to RAG, not crash the
+        # whole answer.
+        return {}
     if result is None:
         return {}
     return {
