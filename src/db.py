@@ -44,11 +44,11 @@ def retrieve(conn, query_embedding: list[float], k: int = 5) -> list[dict]:
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT content, citation, 1 - (embedding <=> %s::vector) AS score
+            SELECT content, citation, theme, 1 - (embedding <=> %s::vector) AS score
             FROM documents
             ORDER BY embedding <=> %s::vector
             LIMIT %s
             """,
             (vec, vec, k),
         )
-        return [{"content": r[0], "citation": r[1], "score": r[2]} for r in cur.fetchall()]
+        return [{"content": r[0], "citation": r[1], "theme": r[2], "score": r[3]} for r in cur.fetchall()]
