@@ -15,7 +15,7 @@ from functools import lru_cache
 _MODEL = "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli"
 ENTAILMENT_THRESHOLD = 0.5
 
-_REFUSAL_MARKERS = ("nao ha dados", "nao tenho dados", "nao ha dado", "nao ha informac")
+_REFUSAL_MARKERS = ("nao ha dados", "nao tenho dados", "nao ha dado", "nao ha informacao")
 
 
 @lru_cache(maxsize=1)
