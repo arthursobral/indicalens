@@ -1,6 +1,8 @@
 """Eval harness runner.
 
-    python -m eval.run --tier offline --gate   # CI: no secrets, Table Agent only
+    python -m eval.run --tier offline --gate   # CI: recorded fixtures, no network, no secrets
+    python -m eval.run --tier offline --live   # against the real IBGE API
+    python -m eval.run --tier offline --record # refresh eval/fixtures from the real API
     python -m eval.run --tier full             # local: whole graph + Critic evaluation
 
 Prints metrics, writes eval/last_report.json (gitignored), and with --gate
@@ -170,13 +172,23 @@ def gate(tier: str, metrics: dict) -> bool:
     return ok
 
 
-def _cache_and_retry_ibge_fetch() -> None:
-    """The offline tier asks ~80 questions and each one re-downloads a whole
-    series; without this, one network blip (seen in CI: ConnectTimeout)
-    crashes the gate, and a gate that flakes gets ignored. Cache per process
-    + retry with backoff. Harness-only: production code is untouched.
+FIXTURES = HERE / "fixtures"
+
+
+def _install_fetch(mode: str) -> None:
+    """Replaces fetch_series for the harness (production code untouched).
+
+    fixtures (default): read recorded JSON from eval/fixtures/, no network.
+        The gate must be more reliable than the code it guards; CI hit
+        ConnectTimeout on the live IBGE API (rate limit on the runner's IP)
+        and, worse, other live tests printed SKIPPED and stayed green. The
+        system under test and the oracle read the same snapshot, so what is
+        exercised is still the parsing/routing logic, where the bugs lived.
+    live: real API, cached per process, retry with backoff (local use).
+    record: live + write the fixtures (refresh with `--record`).
     """
     import functools
+    import json
 
     import requests
 
@@ -186,25 +198,38 @@ def _cache_and_retry_ibge_fetch() -> None:
     original = ic.fetch_series
 
     @functools.lru_cache(maxsize=None)
-    def cached(*args, **kwargs):
+    def fetch(agregado, variavel, periodos="all", classificacao=None, nivel_territorial="N1", localidade="1"):
+        key = f"{agregado}_{variavel}_{periodos}_{classificacao or 'none'}_{nivel_territorial}_{localidade}"
+        path = FIXTURES / (re.sub(r"[^\w.-]", "_", key) + ".json")
+        if mode == "fixtures":
+            if not path.exists():
+                raise FileNotFoundError(f"no fixture {path.name}; run `python -m eval.run --record`")
+            return [tuple(p) for p in json.loads(path.read_text(encoding="utf-8"))]
         for attempt in range(1, 5):
             try:
-                return original(*args, **kwargs)
+                points = original(agregado, variavel, periodos, classificacao, nivel_territorial, localidade)
+                break
             except requests.RequestException:
                 if attempt == 4:
                     raise
                 time.sleep(2 ** attempt)
+        if mode == "record":
+            FIXTURES.mkdir(exist_ok=True)
+            path.write_text(json.dumps(points, ensure_ascii=False), encoding="utf-8")
+        return points
 
-    ic.fetch_series = ta.fetch_series = cases.fetch_series = cached
+    ic.fetch_series = ta.fetch_series = cases.fetch_series = fetch
 
 
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
-    _cache_and_retry_ibge_fetch()
     ap = argparse.ArgumentParser()
     ap.add_argument("--tier", choices=["offline", "full", "all"], default="offline")
     ap.add_argument("--gate", action="store_true")
+    ap.add_argument("--live", action="store_true", help="hit the real IBGE API instead of eval/fixtures")
+    ap.add_argument("--record", action="store_true", help="hit the real API and rewrite eval/fixtures")
     args = ap.parse_args()
+    _install_fetch("record" if args.record else "live" if args.live else "fixtures")
 
     tiers = ["offline", "full"] if args.tier == "all" else [args.tier]
     report, healthy = {}, True
