@@ -81,6 +81,10 @@ def generate(state: State) -> dict:
     )
     user_prompt = f"Contexto:\n{numbered}\n\nPergunta: {state['question']}"
     answer = chat(SYSTEM_PROMPT, user_prompt)
+    if not answer.strip():  # the LLM occasionally returns an empty completion (seen by the eval harness)
+        answer = chat(SYSTEM_PROMPT, user_prompt)
+    if not answer.strip():
+        answer = "Não foi possível gerar uma resposta agora. Tente novamente."
     return {"answer": answer}
 
 

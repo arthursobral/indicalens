@@ -86,6 +86,13 @@ RAG vetorial de sempre (retrieve -> generate).
    python -m src.qa_agent "Qual foi a taxa de desocupacao mais recente?"
    ```
 
+## Avaliacao
+
+```bash
+python -m eval.run --tier offline --gate   # roda no CI, sem segredos
+python -m eval.run --tier full             # local: Groq + Supabase + Critic
+```
+
 ## Testes
 
 ```bash
