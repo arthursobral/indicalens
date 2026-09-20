@@ -1,5 +1,8 @@
 {
-  "offline": {"lookup_accuracy": 0.98, "refusal_accuracy": 1.0},
+  "offline": {
+    "lookup_accuracy": 0.98,
+    "refusal_accuracy": 1.0
+  },
   "full": {
     "routing_accuracy": 1.0,
     "decline_accuracy": 0.95,
@@ -8,6 +11,9 @@
     "faithfulness": 0.6,
     "critic_specificity": 0.9,
     "critic_recall_wrong_number": 0.9,
-    "critic_recall_invented": 0.8
+    "critic_recall_invented": 0.8,
+    "critic_real_specificity": 0.75,
+    "critic_real_recall": 0.7,
+    "labeled_faithfulness": 0.8
   }
 }

@@ -90,11 +90,15 @@ def generate(state: State) -> dict:
 
 def verify(state: State) -> dict:
     verdicts = critic.verify(state["answer"], state["context"])
-    flagged = [v for v in verdicts if v["status"] != "supported"]
+    flagged = [v for v in verdicts if v["status"] in critic.HARD_FLAGS]
+    inferred = [v for v in verdicts if v["status"] == "inferred"]
     answer = state["answer"]
     if flagged:
         lines = "\n".join(f"- {v['claim']} ({v['status']})" for v in flagged)
         answer += f"\n\n[Critic] Afirmações não sustentadas pelas fontes recuperadas:\n{lines}"
+    if inferred:
+        lines = "\n".join(f"- {v['claim']}" for v in inferred)
+        answer += f"\n\n[Critic] Conclusões inferidas pelo modelo (não escritas na fonte):\n{lines}"
     return {"verdicts": verdicts, "answer": answer}
 
 
