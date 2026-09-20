@@ -12,7 +12,7 @@ from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from src import db, table_agent
+from src import critic, db, table_agent
 from src.embeddings import embed_one
 from src.llm import chat
 
@@ -29,6 +29,7 @@ class State(TypedDict):
     question: str
     context: list[dict]
     answer: str
+    verdicts: list[dict]
 
 
 def try_table_agent(state: State) -> dict:
@@ -68,20 +69,32 @@ def generate(state: State) -> dict:
     return {"answer": answer}
 
 
+def verify(state: State) -> dict:
+    verdicts = critic.verify(state["answer"], state["context"])
+    flagged = [v for v in verdicts if v["status"] != "supported"]
+    answer = state["answer"]
+    if flagged:
+        lines = "\n".join(f"- {v['claim']} ({v['status']})" for v in flagged)
+        answer += f"\n\n[Critic] Afirmações não sustentadas pelas fontes recuperadas:\n{lines}"
+    return {"verdicts": verdicts, "answer": answer}
+
+
 def build_graph():
     graph = StateGraph(State)
     graph.add_node("try_table_agent", try_table_agent)
     graph.add_node("retrieve", retrieve)
     graph.add_node("generate", generate)
+    graph.add_node("verify", verify)
     graph.add_edge(START, "try_table_agent")
     graph.add_conditional_edges("try_table_agent", _route_after_table_agent, {"done": END, "rag": "retrieve"})
     graph.add_edge("retrieve", "generate")
-    graph.add_edge("generate", END)
+    graph.add_edge("generate", "verify")
+    graph.add_edge("verify", END)
     return graph.compile()
 
 
 def ask(question: str) -> State:
-    return build_graph().invoke({"question": question, "context": [], "answer": ""})
+    return build_graph().invoke({"question": question, "context": [], "answer": "", "verdicts": []})
 
 
 if __name__ == "__main__":
@@ -92,6 +105,9 @@ if __name__ == "__main__":
 
     result = ask(" ".join(sys.argv[1:]))
     print(result["answer"])
+    if result["verdicts"]:
+        ok = sum(v["status"] == "supported" for v in result["verdicts"])
+        print(f"\nCritic: {ok}/{len(result['verdicts'])} afirmações sustentadas")
     print("\nFontes recuperadas:")
     for c in result["context"]:
         theme = f", tema={c['theme']}" if c.get("theme") else ""
