@@ -15,7 +15,7 @@ para Selic e cambio.
 
 ## Status
 
-Semanas 9-10 de 12 (em andamento: Correlation Agent, ja com cliente do Banco Central); antes disso, semanas 3-8: alem da ingestao tabular e do texto corrido das semanas
+Semanas 9-10 de 12 (em andamento: Correlation Agent com cliente do Banco Central e calculo de correlacao; faltam harness e batch); antes disso, semanas 3-8: alem da ingestao tabular e do texto corrido das semanas
 1-2, agora tem um Table Agent (lookup direto e deterministico pra perguntas
 numericas) e um Indicator Analyst Agent (classifica cada comentario por tema
 via zero-shot). Ver [docs/03-roadmap.md](docs/03-roadmap.md) para o plano
@@ -49,6 +49,9 @@ pergunta do usuario --> src/qa_agent.py (LangGraph)
   divulgacao (cadernos do FTP vs. valor atual da API).
 - `src/critic.py`: depois do RAG, checa cada afirmacao da resposta contra os
   trechos recuperados (NLI local) e sinaliza o que nao tem suporte.
+- `src/correlation.py`: Correlation Agent. Relaciona Selic/cambio com o IPCA
+  (variacoes, defasagens 0-12, IC ajustado por multiplas defasagens); sem LLM.
+  Ex: `python -m src.qa_agent "A inflacao se move junto com a Selic?"`.
 - `src/bcb_client.py`: series mensais do Banco Central (SGS): Selic e cambio
   (dolar), sem chave. Base do Correlation Agent (em construcao, semanas 9-10).
 - `src/table_agent.py`: perguntas numericas sobre uma serie conhecida (ex:
