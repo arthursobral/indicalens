@@ -170,8 +170,37 @@ def gate(tier: str, metrics: dict) -> bool:
     return ok
 
 
+def _cache_and_retry_ibge_fetch() -> None:
+    """The offline tier asks ~80 questions and each one re-downloads a whole
+    series; without this, one network blip (seen in CI: ConnectTimeout)
+    crashes the gate, and a gate that flakes gets ignored. Cache per process
+    + retry with backoff. Harness-only: production code is untouched.
+    """
+    import functools
+
+    import requests
+
+    import src.ibge_client as ic
+    import src.table_agent as ta
+
+    original = ic.fetch_series
+
+    @functools.lru_cache(maxsize=None)
+    def cached(*args, **kwargs):
+        for attempt in range(1, 5):
+            try:
+                return original(*args, **kwargs)
+            except requests.RequestException:
+                if attempt == 4:
+                    raise
+                time.sleep(2 ** attempt)
+
+    ic.fetch_series = ta.fetch_series = cases.fetch_series = cached
+
+
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
+    _cache_and_retry_ibge_fetch()
     ap = argparse.ArgumentParser()
     ap.add_argument("--tier", choices=["offline", "full", "all"], default="offline")
     ap.add_argument("--gate", action="store_true")
