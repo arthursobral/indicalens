@@ -61,7 +61,8 @@ def test_ignore_rules_cover_secret_files():
 def test_scanner_catches_a_planted_key():
     fake = "gsk_" + "A1b2C3d4E5f6G7h8I9j0K1l2"  # assembled at runtime so this file itself stays clean
     assert re.search(SHAPES["Groq key"], f"KEY={fake}")
-    assert re.search(SHAPES["database URL with a real password"], "postgresql://u:hunter2pass@host:5432/db")
+    fake_url = "postgresql://u:" + "hunter2pass" + "@host:5432/db"  # assembled at runtime: a literal here would flag this very file
+    assert re.search(SHAPES["database URL with a real password"], fake_url)
     assert not re.search(SHAPES["database URL with a real password"], "postgresql://postgres:[password]@[host]:5432/postgres")
     assert not re.search(SHAPES["database URL with a real password"], 'postgresql://postgres.<project-ref>:<password>@aws-0.pooler.supabase.com:5432/postgres')
 
