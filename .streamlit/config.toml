@@ -13,6 +13,8 @@ fileWatcherType = "none"
 
 [client]
 toolbarMode = "minimal"
+# an uncaught exception must not show visitors file paths, hostnames or stack traces
+showErrorDetails = "none"
 
 [browser]
 gatherUsageStats = false

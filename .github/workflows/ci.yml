@@ -26,6 +26,7 @@ jobs:
       - run: python tests/test_batch.py
       - run: python tests/test_revision_effects.py
       - run: python tests/test_app.py
+      - run: python tests/test_no_secrets.py
       - run: python -m eval.run --tier offline --gate
       # test_indicator_analyst.py is intentionally not run here: it downloads
       # a ~280M param model, which would make every PR slow/flaky. Run it

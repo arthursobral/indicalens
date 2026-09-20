@@ -7,6 +7,7 @@ Look and feel: .streamlit/config.toml (theme) + assets/style.css + assets/logo.s
 """
 
 import os
+import sys
 from pathlib import Path
 
 import streamlit as st
@@ -101,7 +102,9 @@ def _result_chips(item: dict) -> str:
 
 def _render(item: dict) -> None:
     if "error" in item:
-        st.error(f"Não consegui responder agora ({item['error']}). Tente de novo em instantes.")
+        # the raw error can carry hostnames/usernames (e.g. a database connection failure): log it for the owner, show visitors nothing
+        print(f"[indicalens] error answering {item['question']!r}: {item['error']}", file=sys.stderr)
+        st.error("Não consegui responder agora. Tente de novo em instantes.")
         return
     st.markdown(item["answer"].replace("\n", "\n\n"))  # single newlines would glue paragraphs onto the previous bullet
     st.markdown(_result_chips(item), unsafe_allow_html=True)
@@ -178,6 +181,10 @@ def reports_tab() -> None:
         c[1].metric("Chamadas ao LLM", r["llm_calls"])
         c[2].metric("Tokens (ent. / saída)", f"{r['tokens_in']} / {r['tokens_out']}")
         c[3].metric("Critic", f"{r['flagged']} de {r['claims']}")
+        for i in r["items"]:
+            if "error" in i:
+                print(f"[indicalens] report error {i['question']!r}: {i['error']}", file=sys.stderr)
+                i["error"] = "não foi possível responder (detalhes no log do servidor)"
         md = batch.to_markdown(r)
         st.markdown(md.replace("\n", "\n\n"))
         st.download_button("Baixar .md", md, file_name=f"{name}.md")

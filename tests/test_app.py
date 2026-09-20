@@ -82,6 +82,40 @@ def test_zero_claims_is_not_shown_as_all_clear():
     assert "sem afirmações para verificar" in html and "chip-ok" not in html.split("Busca + LLM + Critic", 1)[1]
 
 
+LEAK = "OperationalError: connection to db.abcdefghij.supabase.co port 5432 failed: password authentication failed for user postgres.abcdefghij (password=hunter2pass)"
+
+
+def test_errors_never_leak_hosts_or_credentials_to_visitors():
+    old = batch.ask_once
+    batch.ask_once = lambda q, *a, **k: {"question": q, "error": LEAK, "seconds": 0.1}
+    os.environ.update({"DATABASE_URL": "postgresql://x", "GROQ_API_KEY": "x"})
+    try:
+        at = AppTest.from_file(APP, default_timeout=30).run()
+        at.chat_input[0].set_value("qualquer").run()
+    finally:
+        batch.ask_once = old
+    page = " ".join([m.value for m in at.markdown] + [e.value for e in at.error] + [w.value for w in at.warning])
+    assert any("Não consegui responder agora" in e.value for e in at.error)
+    for secret in ("supabase", "hunter2pass", "abcdefghij", "OperationalError"):
+        assert secret not in page, f"leaked {secret!r} to the page"
+
+
+def test_report_errors_never_leak_either():
+    old = batch.build_report
+    batch.build_report = lambda name, qs, *a, **k: {"indicator": name, "items": [{"question": qs[0], "error": LEAK, "seconds": 0.1}],
+                                                     "seconds": 0.1, "llm_calls": 0, "tokens_in": 0, "tokens_out": 0, "errors": 1, "flagged": 0, "claims": 0}
+    os.environ.update({"DATABASE_URL": "postgresql://x", "GROQ_API_KEY": "x"})
+    try:
+        at = AppTest.from_file(APP, default_timeout=30).run()
+        next(b for b in at.button if b.key == "gen").click().run()
+    finally:
+        batch.build_report = old
+    page = " ".join(m.value for m in at.markdown)
+    assert "detalhes no log do servidor" in page
+    for secret in ("supabase", "hunter2pass", "abcdefghij", "OperationalError"):
+        assert secret not in page, f"leaked {secret!r} in the report"
+
+
 def test_session_cap_blocks_extra_questions():
     old = os.environ.get("MAX_QUESTIONS_PER_SESSION")
     os.environ["MAX_QUESTIONS_PER_SESSION"] = "2"

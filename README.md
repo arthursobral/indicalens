@@ -71,6 +71,18 @@ O agente de QA (`src/qa_agent.py`) e um grafo LangGraph com roteamento: tenta
 o Table Agent primeiro; se a pergunta nao citar uma serie conhecida, cai pro
 RAG vetorial de sempre (retrieve -> generate).
 
+## Seguranca
+
+Segredos (`DATABASE_URL`, `GROQ_API_KEY`, chaves do Langfuse) ficam so no `.env` local ou nos
+Secrets do Streamlit Cloud; `.env*`, `secrets.toml`, chaves/certificados, `docs/` e `reports/`
+estao no `.gitignore` (so os modelos `.env.example` e `.streamlit/secrets.toml.example`, com
+placeholders, sao versionados). `tests/test_no_secrets.py` roda no CI e reprova se algum arquivo
+rastreado tiver formato de chave (Groq, Langfuse, URL de banco com senha, JWT, chave privada,
+token do GitHub), se um arquivo secreto for rastreado ou se as regras de ignore forem
+enfraquecidas; o GitHub secret scanning e o push protection tambem estao ativos. O app nunca
+mostra a um visitante o texto bruto de um erro (pode conter host ou usuario do banco): ele vai
+so para o log do servidor.
+
 ## Interface web
 
 ```bash
