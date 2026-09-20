@@ -6,3 +6,4 @@ langgraph
 pypdf
 transformers
 langfuse
+numpy

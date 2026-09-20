@@ -14,6 +14,7 @@ Design choices (each one is a way to avoid a misleading answer):
 """
 
 import math
+import re
 import statistics
 import unicodedata
 from statistics import NormalDist
@@ -30,6 +31,7 @@ _BCB_TERMS = {
     "CAMBIO_USD_MEDIA_MENSAL": ["cambio", "dolar"],
 }
 _IBGE_TERMS = {"ipca": ["ipca", "inflacao"], "outro": ["pib", "desocupacao", "desemprego", "rendimento", "renda", "salario", "informal", "pobreza"]}
+_POINT_VALUE = re.compile(r"\d{2,4}|recente|ultimo|hoje|atual|vigente|agora")
 _RELATION_CUES = ["junto", "se move", "move com", "relacao", "relaciona", "correlac", "afeta", "influenc", "impact",
                   "antecede", "depende", "associa", "acompanha", "reage", "sensivel", "anda com"]
 
@@ -118,9 +120,13 @@ def detect(question: str) -> tuple[str | None, str | None] | None:
     q = _norm(question)
     bcb = next((n for n, ts in _BCB_TERMS.items() if any(t in q for t in ts)), None)
     ibge = next((k for k, ts in _IBGE_TERMS.items() if any(t in q for t in ts)), None)
-    if not (bcb and ibge and any(c in q for c in _RELATION_CUES)):
+    if not (bcb and ibge):
         return None
-    return bcb, ibge
+    # a series of each side in one question is a relation unless it asks for a point value
+    # (a period, "mais recente", "hoje"...); explicit relation cues always count
+    if any(c in q for c in _RELATION_CUES) or not _POINT_VALUE.search(q):
+        return bcb, ibge
+    return None
 
 
 def answer(question: str) -> dict | None:

@@ -1,7 +1,17 @@
 {
   "offline": {
     "lookup_accuracy": 0.98,
-    "refusal_accuracy": 1.0
+    "refusal_accuracy": 1.0,
+    "bcb_lookup_accuracy": 1.0,
+    "bcb_refusal_accuracy": 1.0,
+    "correlation_oracle_match": 1.0,
+    "planted_lag_recall": 0.95,
+    "noise_specificity": 0.9,
+    "random_walk_specificity": 0.9,
+    "corr_route_recall_dev": 1.0,
+    "corr_route_specificity_dev": 1.0,
+    "corr_route_recall_heldout": 0.85,
+    "corr_route_specificity_heldout": 0.8
   },
   "full": {
     "routing_accuracy": 1.0,

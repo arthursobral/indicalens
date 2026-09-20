@@ -156,3 +156,62 @@ def critic_cases() -> list[dict]:
         if i < 5:
             cases.append({"ctx": ctx, "answer": invented, "expect": ["supported", "flagged"]})
     return cases
+
+
+# --- Correlation Agent / BCB lookup (semana 9-10) -----------------------------------
+
+# Golden facts about the BCB series, hard-coded from public knowledge (NOT computed by the code
+# under test): (question, substrings that must all appear in the answer).
+BCB_GOLDEN = [
+    ("Qual a taxa selic em 31/12/2022?", ["13,75% a.a."]),
+    ("Qual a taxa selic em 31/12/2021?", ["9,25% a.a."]),
+    ("Qual a taxa selic em 31/12/2019?", ["4,50% a.a."]),
+    ("qual a taxa selic de novembro de 2022?", ["13,75% a.a.", "1,02%"]),
+    ("selic de 2022", ["terminou o ano em 13,75%", "entre 9,25% e 13,75%"]),
+    ("selic em 2021 e 2022", ["terminou o ano em 9,25%", "terminou o ano em 13,75%"]),
+    ("qual o cambio em 30/12/2022 para dolar?", ["R$ 5,2177"]),
+    ("dolar em 31/12/2021", ["R$ 5,5805"]),
+    ("dolar em 30/12/2020", ["R$ 5,1967"]),
+    ("dolar em 05/03/2022", ["R$ 5,0758", "04/03/2022"]),  # a Saturday: last quotation before it, and says so
+    ("qual o cambio em dezembro de 2022 para dolar?", ["R$ 5,2177 em 30/12/2022"]),
+]
+# Inputs that must NOT produce a number for a different period (message substring expected).
+BCB_REFUSALS = [
+    ("selic em março", "informe o ano"),
+    ("Qual a selic em 30/02/2022?", "não existe"),
+    ("selic em dezembro de 2099", "futura"),
+    ("dolar em 2099", "futura"),
+    ("selic em 1º de janeiro de 1970", "sem dados"),
+]
+
+# Recognition of correlation questions in varied phrasing. DEV was used to tune the cue list;
+# TEST was written at the same time and is only scored, never tuned on. (question, is_correlation)
+CORR_ROUTE_DEV = [
+    ("A inflacao se move junto com a Selic?", True), ("O cambio afeta o IPCA?", True),
+    ("Existe relacao entre juros e inflacao?", True), ("O dolar influencia a inflacao?", True),
+    ("A Selic tem correlacao com o IPCA?", True), ("O IPCA depende do cambio?", True),
+    ("A inflacao acompanha o dolar?", True), ("Qual o impacto do cambio no IPCA?", True),
+    ("A taxa de juros antecede a inflacao?", True), ("A inflacao reage a Selic?", True),
+    ("Qual o valor da Selic hoje?", False), ("Qual foi o IPCA em janeiro de 1998?", False),
+    ("Por que a inflacao subiu em 2021?", False), ("Qual foi a taxa de desocupacao mais recente?", False),
+    ("Qual o cambio mais recente para dolar?", False), ("O que os comentarios do IBGE dizem sobre renda?", False),
+]
+CORR_ROUTE_DEV += [
+    ("O dolar pressiona a inflacao?", True), ("Qual o efeito da Selic sobre o IPCA?", True),
+    ("Juros altos derrubam a inflacao?", True), ("Ha relacao entre cambio e IPCA?", True),
+    ("A Selic e o IPCA andam juntos?", True), ("A inflacao esta associada ao cambio?", True),
+    ("Como a Selic se relaciona com a inflacao?", True), ("O IPCA responde ao dolar?", True),
+    ("Quando o dolar sobe, a inflacao sobe?", True), ("A inflacao segue a taxa de juros?", True),
+    ("Qual a Selic vigente?", False), ("Qual foi o PIB no ultimo trimestre?", False),
+    ("Qual a taxa de informalidade mais recente?", False), ("O PIB de 2020 foi revisado?", False),
+    ("Qual foi o dolar em 30/12/2022?", False), ("Como a renda se distribui por regiao?", False),
+]
+CORR_ROUTE_TEST = [  # written BEFORE the rule change below and never used for tuning (v2; v1 became DEV_2)
+    ("O cambio impulsiona a inflacao?", True), ("A alta da Selic freia o IPCA?", True),
+    ("Existe ligacao entre o dolar e a inflacao?", True), ("O IPCA varia conforme os juros?", True),
+    ("Quando a Selic aumenta, o que acontece com a inflacao?", True), ("O dolar mais caro encarece o IPCA?", True),
+    ("Juros e inflacao caminham na mesma direcao?", True), ("A inflacao muda quando o cambio muda?", True),
+    ("Qual o IPCA e a Selic mais recentes?", False), ("Qual foi o IPCA e o dolar em 2022?", False),
+    ("Me diga o dolar de hoje e a inflacao do ultimo mes", False), ("Qual a meta da Selic atual?", False),
+    ("O PIB cresceu mais que a inflacao em 2021?", False), ("Qual foi a variacao do dolar em 2022?", False),
+]

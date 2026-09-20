@@ -99,7 +99,7 @@ RAG vetorial de sempre (retrieve -> generate).
 ## Avaliacao
 
 ```bash
-python -m eval.run --tier offline --gate   # roda no CI, sem segredos
+python -m eval.run --tier offline --gate   # roda no CI, sem segredos (IBGE + BCB + correlacao)
 python -m eval.run --tier full             # local: Groq + Supabase + Critic
 ```
 

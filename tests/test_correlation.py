@@ -64,6 +64,9 @@ def test_detect():
     assert c.detect("O dólar influencia a taxa de desocupação?")[1] == "outro"
     assert c.detect("Qual foi o IPCA em agosto de 2026?") is None
     assert c.detect("Qual a Selic hoje?") is None
+    assert c.detect("O dolar pressiona a inflacao?") == ("CAMBIO_USD_MEDIA_MENSAL", "ipca")  # no cue word, but both sides named
+    assert c.detect("Qual o IPCA e a Selic mais recentes?") is None  # point-value request, not a relation
+    assert c.detect("Qual foi o IPCA e o dolar em 2022?") is None
     res = c.analyze({m: float(i % 5) for i, m in enumerate(_months(100))}, {m: float((i * 3) % 7) for i, m in enumerate(_months(100))})
     assert "câmbio" in c.describe("CAMBIO_USD_MEDIA_MENSAL", res) and "Selic também" not in c.describe("CAMBIO_USD_MEDIA_MENSAL", res)
     assert "vou estimar" in c.answer("O dólar influencia a taxa de desocupação?")["answer"]

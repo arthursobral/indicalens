@@ -62,12 +62,123 @@ def run_offline() -> dict:
 
     results["lookup_accuracy"] = _rate(ok_lookup, len(lookups))
     results["refusal_accuracy"] = _rate(ok_refuse, len(cases.REFUSAL_CASES))
+    counts = {"lookup_cases": len(lookups), "refusal_cases": len(cases.REFUSAL_CASES)}
+    bcb_metrics, bcb_counts, bcb_failures = run_bcb()
+    results.update(bcb_metrics)
+    counts.update(bcb_counts)
+    failures += bcb_failures
     return {
         "metrics": results,
-        "counts": {"lookup_cases": len(lookups), "refusal_cases": len(cases.REFUSAL_CASES)},
+        "counts": counts,
         "per_series": {k: _rate(sum(v), len(v)) for k, v in by_series.items()},
         "failures": failures,
     }
+
+
+def _oracle_correlation(x_raw: dict, ipca: dict, selic: bool) -> dict:
+    """Independent reimplementation: integer month index + numpy, no shared helpers with
+    src/correlation.py. Same definitions (variations, 2000+, lags 0-12), so it checks the
+    implementation (alignment, lag direction, CI), not the methodology."""
+    import numpy as np
+
+    ym = lambda p: int(p[:4]) * 12 + int(p[4:])
+    ks = sorted(x_raw)
+    dx = {}
+    for a, b in zip(ks, ks[1:]):
+        if ym(b) - ym(a) == 1:
+            dx[ym(b)] = x_raw[b] - x_raw[a] if selic else 100 * (x_raw[b] / x_raw[a] - 1)
+    iy = {ym(p): v for p, v in ipca.items() if p >= "200001"}
+    best = None
+    for k in range(13):
+        ts = [t for t in sorted(iy) if t - k in dx]
+        r = float(np.corrcoef([dx[t - k] for t in ts], [iy[t] for t in ts])[0, 1])
+        if k == 0:
+            r0, n0 = r, len(ts)
+        if best is None or abs(r) > abs(best[1]):
+            best = (k, r, len(ts))
+    return {"lag": best[0], "r": best[1], "n": best[2], "r0": r0, "n0": n0}
+
+
+def run_bcb() -> tuple[dict, dict, list]:
+    import random
+
+    from src import bcb_agent, bcb_client, correlation
+    from src.ibge_client import fetch_series as ibge
+
+    metrics, failures = {}, []
+
+    # 1. lookup against hard-coded golden facts
+    ok = 0
+    for q, needles in cases.BCB_GOLDEN:
+        got = bcb_agent.answer(q)
+        good = got is not None and all(n in got["answer"] for n in needles)
+        ok += good
+        if not good:
+            failures.append({"question": q, "expected": " & ".join(needles), "got": got and got["answer"]})
+    metrics["bcb_lookup_accuracy"] = _rate(ok, len(cases.BCB_GOLDEN))
+
+    # 2. impossible/ambiguous periods must be refused explicitly, not answered for another period
+    ok = 0
+    for q, needle in cases.BCB_REFUSALS:
+        got = bcb_agent.answer(q)
+        good = got is not None and needle in got["answer"].lower()
+        ok += good
+        if not good:
+            failures.append({"question": q, "expected": f"message containing {needle!r}", "got": got and got["answer"]})
+    metrics["bcb_refusal_accuracy"] = _rate(ok, len(cases.BCB_REFUSALS))
+
+    # 3. correlation numbers vs the independent numpy oracle, on the real (recorded) series
+    ipca = {p: float(v) for p, v in ibge(1737, 63, "all")}
+    ok = 0
+    pairs = [("SELIC_MENSAL", True), ("CAMBIO_USD_MEDIA_MENSAL", False)]
+    for name, selic in pairs:
+        raw = dict(bcb_client.fetch_series(bcb_client.SERIES[name]["code"]))
+        want = _oracle_correlation(raw, ipca, selic)
+        got = correlation.answer("A Selic afeta o IPCA?" if selic else "O cambio afeta o IPCA?")["result"]
+        b, l0 = got["best"], got["lag0"]
+        good = (b["lag"] == want["lag"] and b["n"] == want["n"] and abs(b["r"] - want["r"]) < 1e-9
+                and l0["n"] == want["n0"] and abs(l0["r"] - want["r0"]) < 1e-9)
+        ok += good
+        if not good:
+            failures.append({"question": name, "expected": str(want), "got": str({"lag": b["lag"], "r": b["r"], "n": b["n"]})})
+    metrics["correlation_oracle_match"] = _rate(ok, len(pairs))
+
+    # 4. planted structure: a known lag must be recovered; pure noise and independent random
+    # walks (in variations) must NOT be reported as related
+    ms = [correlation.add_months("200001", i) for i in range(200)]
+    hit = noise_ok = walk_ok = 0
+    seeds = range(40)
+    for s in seeds:
+        rnd = random.Random(s)
+        x = {m: rnd.gauss(0, 1) for m in ms}
+        y = {m: x.get(correlation.add_months(m, -3), 0) + rnd.gauss(0, 0.5) for m in ms}
+        hit += correlation.analyze(x, y)["best"]["lag"] == 3
+        n1 = {m: rnd.gauss(0, 1) for m in ms}
+        n2 = {m: rnd.gauss(0, 1) for m in ms}
+        noise_ok += not correlation.analyze(n1, n2)["best"]["distinguishable"]
+        a = b2 = 0.0
+        w1, w2 = {}, {}
+        for m in ms:
+            a += rnd.gauss(0, 1)
+            b2 += rnd.gauss(0, 1)
+            w1[m], w2[m] = a, b2
+        walk_ok += not correlation.analyze(correlation._diff(w1), correlation._diff(w2))["best"]["distinguishable"]
+    metrics["planted_lag_recall"] = _rate(hit, len(seeds))
+    metrics["noise_specificity"] = _rate(noise_ok, len(seeds))
+    metrics["random_walk_specificity"] = _rate(walk_ok, len(seeds))
+
+    # 5. recognition of correlation questions in varied phrasing (dev vs held-out)
+    for label, cs in (("dev", cases.CORR_ROUTE_DEV), ("heldout", cases.CORR_ROUTE_TEST)):
+        pos = [(q, correlation.detect(q) is not None) for q, want in cs if want]
+        neg = [(q, correlation.detect(q) is None) for q, want in cs if not want]
+        metrics[f"corr_route_recall_{label}"] = _rate(sum(g for _, g in pos), len(pos))
+        metrics[f"corr_route_specificity_{label}"] = _rate(sum(g for _, g in neg), len(neg))
+        failures += [{"question": q, "expected": "recognized as correlation", "got": "not recognized"} for q, g in pos if not g]
+        failures += [{"question": q, "expected": "not correlation", "got": "recognized as correlation"} for q, g in neg if not g]
+
+    counts = {"bcb_golden": len(cases.BCB_GOLDEN), "bcb_refusals": len(cases.BCB_REFUSALS), "planted_seeds": len(seeds),
+              "corr_route_dev": len(cases.CORR_ROUTE_DEV), "corr_route_heldout": len(cases.CORR_ROUTE_TEST)}
+    return metrics, counts, failures
 
 
 # --- full tier ----------------------------------------------------------------
@@ -242,6 +353,62 @@ def _install_fetch(mode: str) -> None:
         return points
 
     ic.fetch_series = ta.fetch_series = cases.fetch_series = fetch
+    _install_bcb(mode)
+
+
+def _install_bcb(mode: str) -> None:
+    """Same idea for the Banco Central client: recorded JSON keyed by code + dates. fetch_latest
+    is left alone (it depends on today's date, so it has hermetic unit tests instead)."""
+    import functools
+    import json
+    from datetime import date
+
+    import requests
+
+    import src.bcb_client as bc
+
+    orig_series, orig_range = bc.fetch_series, bc.fetch_range
+
+    def _load_or_fetch(key, call):
+        path = FIXTURES / (re.sub(r"[^\w.-]", "_", "bcb_" + key) + ".json")
+        if mode == "fixtures":
+            if not path.exists():
+                raise FileNotFoundError(f"no fixture {path.name}; run `python -m eval.run --record`")
+            return json.loads(path.read_text(encoding="utf-8"))
+        for attempt in range(1, 5):
+            try:
+                data = call()
+                break
+            except requests.RequestException:
+                if attempt == 4:
+                    raise
+                time.sleep(2 ** attempt)
+        if mode == "record":
+            FIXTURES.mkdir(exist_ok=True)
+            path.write_text(json.dumps(data), encoding="utf-8")
+        return data
+
+    @functools.lru_cache(maxsize=None)
+    def fetch_series(code, start="01/01/1995", end=None):
+        # default end is "today": the key must not carry it, or the fixture name would drift daily
+        key = f"series_{code}_{start}" if end is None else f"series_{code}_{start}_{end}"
+        return [tuple(p) for p in _load_or_fetch(key, lambda: orig_series(code, start, end))]
+
+    @functools.lru_cache(maxsize=None)
+    def fetch_range(code, start, end):
+        key = f"range_{code}_{start:%Y%m%d}_{end:%Y%m%d}"
+        def call():
+            try:
+                return [[d.isoformat(), v] for d, v in orig_range(code, start, end)]
+            except requests.HTTPError as e:
+                if e.response is not None and e.response.status_code == 404:
+                    return []  # SGS answers 404 for a window before the series exists: record it as "no data"
+                raise
+
+        data = _load_or_fetch(key, call)
+        return [(date.fromisoformat(d), v) for d, v in data]
+
+    bc.fetch_series, bc.fetch_range = fetch_series, fetch_range
 
 
 def main() -> int:
