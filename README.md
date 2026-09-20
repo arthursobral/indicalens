@@ -45,6 +45,8 @@ pergunta do usuario --> src/qa_agent.py (LangGraph)
   Desocupacao", "Populacao Ocupada").
 - `src/indicator_analyst.py`: classifica cada chunk de comentario por tema
   (emprego, inflacao, PIB, renda, pobreza, informalidade) via zero-shot.
+- `src/revisions.py`: quanto o IBGE revisou o PIB trimestral desde a primeira
+  divulgacao (cadernos do FTP vs. valor atual da API).
 - `src/critic.py`: depois do RAG, checa cada afirmacao da resposta contra os
   trechos recuperados (NLI local) e sinaliza o que nao tem suporte.
 - `src/table_agent.py`: perguntas numericas sobre uma serie conhecida (ex:
@@ -76,6 +78,7 @@ RAG vetorial de sempre (retrieve -> generate).
    python -m src.ingest
    python -m src.notes
    python -m src.indicator_analyst
+   python -m src.revisions
    ```
 5. Pergunte:
    ```bash
@@ -91,4 +94,5 @@ python tests/test_notes.py
 python tests/test_table_agent.py
 python tests/test_indicator_analyst.py
 python tests/test_critic.py
+python tests/test_revisions.py
 ```
