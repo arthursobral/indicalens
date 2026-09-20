@@ -12,3 +12,7 @@ eval/last_report.json
 
 # batch reports (generated)
 reports/
+
+# Streamlit secrets (real values must never be committed)
+.streamlit/secrets.toml
+.claude/

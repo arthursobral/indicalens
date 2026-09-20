@@ -15,7 +15,7 @@ para Selic e cambio.
 
 ## Status
 
-Semanas 9-10 de 12 concluidas (Correlation Agent, harness, batch e revisoes do PIB x Selic/cambio); proximo: UI e deploy; antes disso, semanas 3-8: alem da ingestao tabular e do texto corrido das semanas
+Semanas 9-10 de 12 concluidas; semana 11: interface Streamlit pronta (`app.py`), deploy pendente; antes disso, semanas 3-8: alem da ingestao tabular e do texto corrido das semanas
 1-2, agora tem um Table Agent (lookup direto e deterministico pra perguntas
 numericas) e um Indicator Analyst Agent (classifica cada comentario por tema
 via zero-shot). Ver [docs/03-roadmap.md](docs/03-roadmap.md) para o plano
@@ -70,6 +70,19 @@ pergunta do usuario --> src/qa_agent.py (LangGraph)
 O agente de QA (`src/qa_agent.py`) e um grafo LangGraph com roteamento: tenta
 o Table Agent primeiro; se a pergunta nao citar uma serie conhecida, cai pro
 RAG vetorial de sempre (retrieve -> generate).
+
+## Interface web
+
+```bash
+.venv/Scripts/python -m streamlit run app.py
+```
+
+Abas: **Perguntas** (chat com o mesmo grafo da CLI, mostrando caminho, tempo, tokens,
+alertas do Critic e fontes), **Relatorios** (batch por indicador, com download do `.md`) e
+**Sobre** (limites honestos). Variaveis opcionais: `MAX_QUESTIONS_PER_SESSION` (padrao 25) e
+`CRITIC_ENABLED=0` para hospedar com pouca memoria (o modelo do Critic usa ~1 GB). Passos de
+deploy no Streamlit Community Cloud e riscos: ver `.streamlit/secrets.toml.example` e a pasta
+local `docs/`. **Deploy ainda nao feito.**
 
 ## Setup
 

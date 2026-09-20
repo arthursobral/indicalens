@@ -7,6 +7,7 @@ Usage:
     python -m src.qa_agent "Qual foi a taxa de desocupacao no ultimo trimestre?"
 """
 
+import os
 import sys
 from typing import TypedDict
 
@@ -118,8 +119,15 @@ def generate(state: State) -> dict:
     return {"answer": answer}
 
 
+def critic_enabled() -> bool:
+    """CRITIC_ENABLED=0 skips the NLI model (~1 GB of RAM) on small hosts; answers then say so."""
+    return os.environ.get("CRITIC_ENABLED", "1") != "0"
+
+
 @observe(name="verify")
 def verify(state: State) -> dict:
+    if not critic_enabled():
+        return {"verdicts": [], "answer": state["answer"] + "\n\n[Critic desativado nesta instância: as afirmações não foram verificadas contra as fontes.]"}
     verdicts = critic.verify(state["answer"], state["context"])
     flagged = [v for v in verdicts if v["status"] in critic.HARD_FLAGS]
     inferred = [v for v in verdicts if v["status"] == "inferred"]
