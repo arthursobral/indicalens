@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.critic import is_short_numeric, split_claims, verify, verify_claim
+from src.critic import HARD_FLAGS, _is_inference, is_short_numeric, split_claims, verify, verify_claim
 
 CTX = [
     {"content": "Segundo o IBGE (SIDRA, tabela 1737), IPCA - variação mensal em janeiro de 1998 foi de 0.71%."},
@@ -42,6 +42,17 @@ def test_short_numeric_claims_are_checked_lexically():
     assert verify_claim("Nordeste: 9,9 %", [], ctx)["status"] == "unsupported"  # number not in the source
 
 
+def test_inference_category():
+    ctx = [{"content": "Com nível superior completo o nível da ocupação chegou a 80,2%; sem instrução, 21,3%."}]
+    # a conclusion that only reuses numbers already in the source is an inference, not an error
+    assert _is_inference("Portanto, quanto maior a instrução, maior a ocupação (21,3% contra 80,2%).", ctx)
+    # a wrong number can never hide behind an inference marker
+    assert not _is_inference("Portanto, quanto maior a instrução, maior a ocupação (21,3% contra 95,0%).", ctx)
+    # no marker, no downgrade
+    assert not _is_inference("A ocupação chegou a 80,2%.", ctx)
+    assert "inferred" not in HARD_FLAGS
+
+
 def test_verify_live():
     good = verify("O IPCA em janeiro de 1998 foi de 0,71 % [1].", CTX)
     assert [v["status"] for v in good] == ["supported"]
@@ -62,5 +73,7 @@ if __name__ == "__main__":
     print("test_split_claims_skips_non_claims: ok")
     test_short_numeric_claims_are_checked_lexically()
     print("test_short_numeric_claims_are_checked_lexically: ok")
+    test_inference_category()
+    print("test_inference_category: ok")
     test_verify_live()
     print("test_verify_live: ok")

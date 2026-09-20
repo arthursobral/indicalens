@@ -126,11 +126,12 @@ def run_full() -> dict:
         rag("prose", q, lambda a, f=frags: any(_norm(x) in _norm(a) for x in f), f"one of {frags}")
 
     supported = sum(v["status"] == "supported" for v in verdicts_all)
+    inferred = sum(v["status"] == "inferred" for v in verdicts_all)  # reasonable conclusions, not errors (owner policy)
     critic_stats = {"good": [0, 0], "wrong": [0, 0], "invented": [0, 0]}
     for c in cases.critic_cases():
         kind = "good" if c["expect"] == ["supported"] else "wrong" if c["expect"] == ["flagged"] else "invented"
         status = [v["status"] for v in critic.verify(c["answer"], c["ctx"])]
-        ok = all(s == "supported" for s in status) and status != [] if kind == "good" else any(s != "supported" for s in status)
+        ok = all(s == "supported" for s in status) and status != [] if kind == "good" else any(s in critic.HARD_FLAGS for s in status)
         critic_stats[kind][0] += ok
         critic_stats[kind][1] += 1
         if not ok:
@@ -142,7 +143,7 @@ def run_full() -> dict:
     ok_sup = sup_total = ok_flag = flag_total = 0
     for item in labeled["items"]:
         ctx = [{"content": labeled["chunks"][i]} for i in item["chunks"]]
-        flagged = critic.verify_claim(item["claim"], [], ctx)["status"] != "supported"
+        flagged = critic.verify_claim(item["claim"], [], ctx)["status"] in critic.HARD_FLAGS
         if item["label"] == 1:
             sup_total += 1
             ok_sup += not flagged
@@ -162,8 +163,10 @@ def run_full() -> dict:
             "decline_accuracy": _rate(*counts["decline"]),
             "multi_period_accuracy": _rate(*counts["multi"]),
             "prose_accuracy": _rate(*counts["prose"]),
-            "faithfulness": _rate(supported, len(verdicts_all)),
-            "critic_flag_rate": _rate(len(verdicts_all) - supported, len(verdicts_all)),
+            "faithfulness": _rate(supported + inferred, len(verdicts_all)),  # inferences are not errors
+            "strict_faithfulness": _rate(supported, len(verdicts_all)),
+            "inference_rate": _rate(inferred, len(verdicts_all)),
+            "critic_flag_rate": _rate(len(verdicts_all) - supported - inferred, len(verdicts_all)),
             "critic_specificity": _rate(*critic_stats["good"]),
             "critic_recall_wrong_number": _rate(*critic_stats["wrong"]),
             "critic_recall_invented": _rate(*critic_stats["invented"]),

@@ -168,7 +168,31 @@ def verify_claim(claim: str, cited: list[int], context: list[dict]) -> dict:
         if scores["contradiction"] > best["contradiction"]:
             best = scores
     status = "contradicted" if best["contradiction"] >= ENTAILMENT_THRESHOLD else "unsupported"
+    if _is_inference(claim, context):
+        status = "inferred"
     return {"claim": claim, "status": status, "chunk": None, "score": best["contradiction"]}
+
+
+_INFERENCE_MARKERS = (
+    "portanto", "assim,", "esses dados mostram", "esses dados indicam", "isso indica", "isso mostra",
+    "em sintese", "em resumo", "tende a", "quanto maior", "quanto menor", "reforca", "influencia", "sugere",
+)
+
+
+def _is_inference(claim: str, context: list[dict]) -> bool:
+    """A conclusion the model drew ('portanto...', 'quanto maior X, maior Y')
+    rather than something the source says. The project owner reviewed real
+    examples and decided such reasonable inferences should NOT count as
+    errors, but should be shown separately from unsupported facts. Guard: it
+    only applies if every number in the claim already appears in the source,
+    so a wrong number can never hide behind an inference marker.
+    """
+    marked = any(m in _strip_accents(claim) for m in _INFERENCE_MARKERS)
+    source_numbers = set().union(*(_numbers(c["content"]) for c in context)) if context else set()
+    return marked and _numbers(claim) <= source_numbers
+
+
+HARD_FLAGS = ("unsupported", "contradicted")  # 'inferred' is reported, but not an error
 
 
 def verify(answer: str, context: list[dict]) -> list[dict]:
