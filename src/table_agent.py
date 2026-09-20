@@ -50,6 +50,8 @@ _ANALYTICAL_MARKERS = [
     "varia por", "por que", "porque", "quais fatores", "quais os fatores",
     "distribui", "explica", "compara", "por nivel", "por nível",
     "por regiao", "por região", "por sexo", "por raça", "por raca",
+    # asking what the IBGE's commentary/analysis says is descriptive too
+    "comentario", "comentário", "o que o ibge", "o que os", "dizem", "diz sobre", "analise", "análise",
 ]
 
 

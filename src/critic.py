@@ -56,20 +56,40 @@ def _score(premise: str, claim: str) -> dict:
     return {x["label"]: x["score"] for x in out}
 
 
-def verify_claim(claim: str, cited: list[int], context: list[dict]) -> dict:
-    """Checks the cited chunk(s) first (1 model pass when the LLM cited
-    correctly), then falls back to every chunk. Supported if any chunk
-    entails the claim; otherwise 'contradicted' if the best-matching chunk
-    contradicts it, else 'unsupported'.
+def _premises(claim: str, context: list[dict], top: int = 4) -> list[tuple[int, str]]:
+    """Candidate premises as (chunk_number, text). Short chunks (one-line
+    table facts) are used whole; long prose chunks are split into sentences
+    and only the `top` most similar to the claim are kept. A whole 700-char
+    chunk with table captions in the middle confuses the NLI model: the eval
+    harness measured false 'contradicted' on claims copied from the source.
     """
-    order = [n - 1 for n in cited if 1 <= n <= len(context)]
-    order += [i for i in range(len(context)) if i not in order]
+    candidates = []
+    for i, chunk in enumerate(context, start=1):
+        text = chunk["content"]
+        if len(text) <= 300:
+            candidates.append((i, text))
+        else:
+            candidates += [(i, sent) for sent in re.split(r"(?<=[.!?])\s+", text) if len(sent.split()) >= 4]
+    if len(candidates) <= top:
+        return candidates
+    from src.embeddings import embed, embed_one
 
+    claim_vec = embed_one(claim)
+    sims = [sum(a * b for a, b in zip(claim_vec, vec)) for vec in embed([t for _, t in candidates])]
+    ranked = sorted(zip(sims, candidates), key=lambda x: -x[0])
+    return [c for _, c in ranked[:top]]
+
+
+def verify_claim(claim: str, cited: list[int], context: list[dict]) -> dict:
+    """Supported if any candidate premise entails the claim (>= threshold);
+    otherwise 'contradicted' if the best premise contradicts it, else
+    'unsupported'. `cited` orders ties only via the ranking above.
+    """
     best = {"entailment": 0.0, "contradiction": 0.0, "neutral": 0.0}
-    for i in order:
-        scores = _score(context[i]["content"], claim)
+    for chunk_no, premise in _premises(claim, context):
+        scores = _score(premise, claim)
         if scores["entailment"] >= ENTAILMENT_THRESHOLD:
-            return {"claim": claim, "status": "supported", "chunk": i + 1, "score": scores["entailment"]}
+            return {"claim": claim, "status": "supported", "chunk": chunk_no, "score": scores["entailment"]}
         if scores["contradiction"] > best["contradiction"]:
             best = scores
     status = "contradicted" if best["contradiction"] >= ENTAILMENT_THRESHOLD else "unsupported"

@@ -6,3 +6,6 @@ venv/
 
 # "brain" da memoria de projeto — local, nao versionado (ver docs/00-overview.md)
 docs/
+
+# eval harness output (regenerated on every run)
+eval/last_report.json

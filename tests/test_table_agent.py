@@ -17,6 +17,8 @@ def test_match_series():
     # names a series but needs descriptive prose, not a bare lookup
     assert match_series("Como a taxa de desocupacao varia por nivel de instrucao?") is None
     assert match_series("Por que a taxa de desocupacao caiu no trimestre?") is None
+    # asking what the commentary says is descriptive, not a bare lookup (found by the eval harness)
+    assert match_series("O que os comentarios do IBGE dizem sobre a taxa de desocupacao no ultimo trimestre?") is None
 
 
 def test_answer_live():
