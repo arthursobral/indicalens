@@ -49,8 +49,8 @@ pergunta do usuario --> src/qa_agent.py (LangGraph)
   divulgacao (cadernos do FTP vs. valor atual da API).
 - `src/critic.py`: depois do RAG, checa cada afirmacao da resposta contra os
   trechos recuperados (NLI local) e sinaliza o que nao tem suporte.
-- `src/bcb_agent.py`: valor mais recente da Selic (meta) e do dolar, direto do
-  Banco Central, sem LLM. Ex: `python -m src.qa_agent "qual a taxa selic mais recente?"`.
+- `src/bcb_agent.py`: Selic (meta) e dolar direto do Banco Central (mais recente, data,
+  mes ou ano), sem LLM. Ex: `python -m src.qa_agent "qual a taxa selic mais recente?"`.
 - `src/correlation.py`: Correlation Agent. Relaciona Selic/cambio com o IPCA
   (variacoes, defasagens 0-12, IC ajustado por multiplas defasagens); sem LLM.
   Ex: `python -m src.qa_agent "A inflacao se move junto com a Selic?"`.

@@ -44,6 +44,14 @@ def fetch_latest(code: int, days: int = 45) -> tuple[str, float]:
     return rows[-1]["data"], float(rows[-1]["valor"])
 
 
+def fetch_range(code: int, start: date, end: date) -> list[tuple[date, float]]:
+    """Points in [start, end] as (date, value), chronological. Callers keep the window under
+    10 years (SGS limit for daily series)."""
+    rows = _rows(code, start.strftime("%d/%m/%Y"), end.strftime("%d/%m/%Y"))
+    return [(date(int(r["data"][6:]), int(r["data"][3:5]), int(r["data"][:2])), float(r["valor"]))
+            for r in rows if r["valor"] not in ("", None)]
+
+
 def fetch_series(code: int, start: str = "01/01/1995", end: str | None = None) -> list[tuple[str, float]]:
     rows = _rows(code, start, end or date.today().strftime("%d/%m/%Y"))
     # SGS monthly points are dated the 1st of the month: "dd/mm/yyyy"
