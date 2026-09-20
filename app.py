@@ -145,7 +145,10 @@ def chat_tab() -> None:
     with history:
         for m in st.session_state.messages:
             with _msg(m["role"]):
-                _render(m["item"]) if m["role"] == "assistant" else st.markdown(m["text"])
+                if m["role"] == "assistant":
+                    _render(m["item"])
+                else:  # a bare `a if c else b` expression would be echoed by Streamlit's "magic"
+                    st.markdown(m["text"])
         if not st.session_state.messages and not question:
             _examples_grid()
         if not question:

@@ -57,6 +57,16 @@ def test_question_is_answered_and_shown():
     assert "Critic: 1 de 3 afirmações sinalizadas" in chips and "Busca + LLM + Critic" in chips
 
 
+def test_history_is_redrawn_cleanly_on_later_turns():
+    # regression: a bare `_render(..) if .. else st.markdown(..)` was echoed by Streamlit's "magic" on turn 2+,
+    # dumping a DeltaGenerator repr (and its docstring) into the page
+    at = _run({"DATABASE_URL": "postgresql://x", "GROQ_API_KEY": "x"}, ["primeira", "segunda"])
+    assert not at.exception
+    assert not at.get("help"), "an object was echoed into the page"
+    texts = " ".join(m.value for m in at.markdown)
+    assert "DeltaGenerator" not in texts and "primeira" in texts and "resposta para: segunda" in texts
+
+
 def test_session_cap_blocks_extra_questions():
     old = os.environ.get("MAX_QUESTIONS_PER_SESSION")
     os.environ["MAX_QUESTIONS_PER_SESSION"] = "2"
