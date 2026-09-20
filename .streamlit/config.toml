@@ -1,0 +1,20 @@
+[theme]
+base = "dark"
+primaryColor = "#2DD4BF"
+backgroundColor = "#0B1220"
+secondaryBackgroundColor = "#111A2E"
+textColor = "#E6EDF7"
+font = "sans serif"
+
+[server]
+# Streamlit's watcher walks every imported module, including transformers' lazy vision submodules that need
+# torchvision (not installed, not needed): harmless, but it floods the console. Restart the app to pick up code edits.
+fileWatcherType = "none"
+
+[client]
+toolbarMode = "minimal"
+# an uncaught exception must not show visitors file paths, hostnames or stack traces
+showErrorDetails = "none"
+
+[browser]
+gatherUsageStats = false

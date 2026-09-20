@@ -1,4 +1,14 @@
+# secrets: every .env variant except the placeholder template, plus key/cert files and any secrets.toml
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets.toml
+!secrets.toml.example
+*.log
+scratch*
 __pycache__/
 *.pyc
 .venv/
@@ -12,3 +22,7 @@ eval/last_report.json
 
 # batch reports (generated)
 reports/
+
+# Streamlit secrets (real values must never be committed)
+.streamlit/secrets.toml
+.claude/

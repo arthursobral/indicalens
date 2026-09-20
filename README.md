@@ -15,7 +15,7 @@ para Selic e cambio.
 
 ## Status
 
-Semanas 9-10 de 12 concluidas (Correlation Agent, harness, batch e revisoes do PIB x Selic/cambio); proximo: UI e deploy; antes disso, semanas 3-8: alem da ingestao tabular e do texto corrido das semanas
+Semanas 9-10 de 12 concluidas; semana 11: interface Streamlit pronta (`app.py`), deploy pendente; antes disso, semanas 3-8: alem da ingestao tabular e do texto corrido das semanas
 1-2, agora tem um Table Agent (lookup direto e deterministico pra perguntas
 numericas) e um Indicator Analyst Agent (classifica cada comentario por tema
 via zero-shot). Ver [docs/03-roadmap.md](docs/03-roadmap.md) para o plano
@@ -70,6 +70,31 @@ pergunta do usuario --> src/qa_agent.py (LangGraph)
 O agente de QA (`src/qa_agent.py`) e um grafo LangGraph com roteamento: tenta
 o Table Agent primeiro; se a pergunta nao citar uma serie conhecida, cai pro
 RAG vetorial de sempre (retrieve -> generate).
+
+## Seguranca
+
+Segredos (`DATABASE_URL`, `GROQ_API_KEY`, chaves do Langfuse) ficam so no `.env` local ou nos
+Secrets do Streamlit Cloud; `.env*`, `secrets.toml`, chaves/certificados, `docs/` e `reports/`
+estao no `.gitignore` (so os modelos `.env.example` e `.streamlit/secrets.toml.example`, com
+placeholders, sao versionados). `tests/test_no_secrets.py` roda no CI e reprova se algum arquivo
+rastreado tiver formato de chave (Groq, Langfuse, URL de banco com senha, JWT, chave privada,
+token do GitHub), se um arquivo secreto for rastreado ou se as regras de ignore forem
+enfraquecidas; o GitHub secret scanning e o push protection tambem estao ativos. O app nunca
+mostra a um visitante o texto bruto de um erro (pode conter host ou usuario do banco): ele vai
+so para o log do servidor.
+
+## Interface web
+
+```bash
+.venv/Scripts/python -m streamlit run app.py
+```
+
+Visual proprio (tema escuro, marca em SVG, etiquetas por caminho e status do Critic; funciona no celular). Abas: **Perguntas** (chat com o mesmo grafo da CLI, mostrando caminho, tempo, tokens,
+alertas do Critic e fontes), **Relatorios** (batch por indicador, com download do `.md`) e
+**Sobre** (limites honestos). Variaveis opcionais: `MAX_QUESTIONS_PER_SESSION` (padrao 25) e
+`CRITIC_ENABLED=0` para hospedar com pouca memoria (o modelo do Critic usa ~1 GB). Passos de
+deploy no Streamlit Community Cloud e riscos: ver `.streamlit/secrets.toml.example` e a pasta
+local `docs/`. **Deploy ainda nao feito.**
 
 ## Setup
 
