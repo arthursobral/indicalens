@@ -12,7 +12,7 @@ from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from src import critic, db, revisions, table_agent
+from src import correlation, critic, db, revisions, table_agent
 from src.embeddings import embed_one
 from src.llm import chat
 from src.tracing import flush, observe
@@ -57,6 +57,22 @@ def try_revision_agent(state: State) -> dict:
     try:
         result = revisions.answer(state["question"])
     except Exception:
+        return {}
+    if result is None:
+        return {}
+    return {
+        "answer": result["answer"],
+        "context": [{"content": result["answer"], "citation": result["citation"], "theme": None, "score": 1.0}],
+    }
+
+
+@observe(name="try_correlation_agent")
+def try_correlation_agent(state: State) -> dict:
+    if state["answer"]:
+        return {}
+    try:
+        result = correlation.answer(state["question"])
+    except Exception:  # live IBGE/BCB failure: fall back instead of crashing
         return {}
     if result is None:
         return {}
@@ -111,12 +127,14 @@ def verify(state: State) -> dict:
 def build_graph():
     graph = StateGraph(State)
     graph.add_node("try_revision_agent", try_revision_agent)
+    graph.add_node("try_correlation_agent", try_correlation_agent)
     graph.add_node("try_table_agent", try_table_agent)
     graph.add_node("retrieve", retrieve)
     graph.add_node("generate", generate)
     graph.add_node("verify", verify)
     graph.add_edge(START, "try_revision_agent")
-    graph.add_edge("try_revision_agent", "try_table_agent")
+    graph.add_edge("try_revision_agent", "try_correlation_agent")
+    graph.add_edge("try_correlation_agent", "try_table_agent")
     graph.add_conditional_edges("try_table_agent", _route_after_table_agent, {"done": END, "rag": "retrieve"})
     graph.add_edge("retrieve", "generate")
     graph.add_edge("generate", "verify")
