@@ -52,6 +52,11 @@ _ANALYTICAL_MARKERS = [
     "por regiao", "por região", "por sexo", "por raça", "por raca",
     # asking what the IBGE's commentary/analysis says is descriptive too
     "comentario", "comentário", "o que o ibge", "o que os", "dizem", "diz sobre", "analise", "análise",
+    # relational questions ("A inflacao se move junto com a Selic?") are not a single-series lookup
+    "se move", "junto com", "relaciona", "relacao entre", "relação entre", "correlac", "afeta", "influenc",
+    "impacta", "impacto", "antecede", "depende",
+    # series this agent doesn't hold: asking about them must not silently answer the IBGE series named beside them
+    "selic", "juros", "cambio", "câmbio", "dolar", "dólar",
 ]
 
 
