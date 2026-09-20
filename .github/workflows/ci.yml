@@ -22,6 +22,7 @@ jobs:
       # test_indicator_analyst.py is intentionally not run here: it downloads
       # a ~280M param model, which would make every PR slow/flaky. Run it
       # locally instead (see docs/01-decisions.md).
+      # test_critic.py is also local-only (loads the same NLI model).
       # test_golden_questions.py is also excluded: it needs a real
       # GROQ_API_KEY (not available in CI) and makes dozens of live LLM
       # calls. Run it locally before merging changes to the agents.
