@@ -105,6 +105,7 @@ FULL_ROUTE = [  # must be answered by the deterministic path (score 1.0, no LLM)
     "Qual foi o IPCA mais recente?", "Como esta a taxa de desemprego no Brasil?",
     "Qual foi o rendimento medio mais recente?", "Qual foi a taxa de pobreza internacional mais recente?",
     "Qual foi a taxa de desocupacao de maio de 2025?", "Qual foi a taxa de desemprego da PME em 2010?",
+    "Qual a taxa selic mais recente?", "Qual o cambio mais recente para dolar?",
 ]
 FULL_REVISION = [  # (question, must appear in the answer)
     ("O PIB do 2 trimestre de 2022 foi revisado?", "3.5%"),

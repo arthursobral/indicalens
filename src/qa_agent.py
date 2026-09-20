@@ -12,7 +12,7 @@ from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from src import correlation, critic, db, revisions, table_agent
+from src import bcb_agent, correlation, critic, db, revisions, table_agent
 from src.embeddings import embed_one
 from src.llm import chat
 from src.tracing import flush, observe
@@ -66,12 +66,11 @@ def try_revision_agent(state: State) -> dict:
     }
 
 
-@observe(name="try_correlation_agent")
-def try_correlation_agent(state: State) -> dict:
+def _try_agent(state: State, agent) -> dict:
     if state["answer"]:
         return {}
     try:
-        result = correlation.answer(state["question"])
+        result = agent.answer(state["question"])
     except Exception:  # live IBGE/BCB failure: fall back instead of crashing
         return {}
     if result is None:
@@ -80,6 +79,16 @@ def try_correlation_agent(state: State) -> dict:
         "answer": result["answer"],
         "context": [{"content": result["answer"], "citation": result["citation"], "theme": None, "score": 1.0}],
     }
+
+
+@observe(name="try_correlation_agent")
+def try_correlation_agent(state: State) -> dict:
+    return _try_agent(state, correlation)
+
+
+@observe(name="try_bcb_agent")
+def try_bcb_agent(state: State) -> dict:
+    return _try_agent(state, bcb_agent)
 
 
 def _route_after_table_agent(state: State) -> str:
@@ -128,13 +137,15 @@ def build_graph():
     graph = StateGraph(State)
     graph.add_node("try_revision_agent", try_revision_agent)
     graph.add_node("try_correlation_agent", try_correlation_agent)
+    graph.add_node("try_bcb_agent", try_bcb_agent)
     graph.add_node("try_table_agent", try_table_agent)
     graph.add_node("retrieve", retrieve)
     graph.add_node("generate", generate)
     graph.add_node("verify", verify)
     graph.add_edge(START, "try_revision_agent")
     graph.add_edge("try_revision_agent", "try_correlation_agent")
-    graph.add_edge("try_correlation_agent", "try_table_agent")
+    graph.add_edge("try_correlation_agent", "try_bcb_agent")
+    graph.add_edge("try_bcb_agent", "try_table_agent")
     graph.add_conditional_edges("try_table_agent", _route_after_table_agent, {"done": END, "rag": "retrieve"})
     graph.add_edge("retrieve", "generate")
     graph.add_edge("generate", "verify")
