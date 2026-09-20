@@ -9,3 +9,6 @@ docs/
 
 # eval harness output (regenerated on every run)
 eval/last_report.json
+
+# batch reports (generated)
+reports/
