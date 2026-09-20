@@ -15,6 +15,7 @@ from langgraph.graph import END, START, StateGraph
 from src import critic, db, revisions, table_agent
 from src.embeddings import embed_one
 from src.llm import chat
+from src.tracing import flush, observe
 
 SYSTEM_PROMPT = (
     "Voce e um analista que responde perguntas sobre indicadores do IBGE "
@@ -32,6 +33,7 @@ class State(TypedDict):
     verdicts: list[dict]
 
 
+@observe(name="try_table_agent")
 def try_table_agent(state: State) -> dict:
     if state["answer"]:  # already answered by the revision lookup
         return {}
@@ -50,6 +52,7 @@ def try_table_agent(state: State) -> dict:
     }
 
 
+@observe(name="try_revision_agent")
 def try_revision_agent(state: State) -> dict:
     try:
         result = revisions.answer(state["question"])
@@ -67,6 +70,7 @@ def _route_after_table_agent(state: State) -> str:
     return "done" if state["answer"] else "rag"
 
 
+@observe(name="retrieve")
 def retrieve(state: State) -> dict:
     query_vec = embed_one(state["question"])
     with db.connect() as conn:
@@ -74,6 +78,7 @@ def retrieve(state: State) -> dict:
     return {"context": context}
 
 
+@observe(name="generate")
 def generate(state: State) -> dict:
     numbered = "\n".join(
         f"[{i + 1}] {c['content']} (fonte: {c['citation']})"
@@ -88,6 +93,7 @@ def generate(state: State) -> dict:
     return {"answer": answer}
 
 
+@observe(name="verify")
 def verify(state: State) -> dict:
     verdicts = critic.verify(state["answer"], state["context"])
     flagged = [v for v in verdicts if v["status"] in critic.HARD_FLAGS]
@@ -118,8 +124,11 @@ def build_graph():
     return graph.compile()
 
 
+@observe(name="ask")
 def ask(question: str) -> State:
-    return build_graph().invoke({"question": question, "context": [], "answer": "", "verdicts": []})
+    result = build_graph().invoke({"question": question, "context": [], "answer": "", "verdicts": []})
+    flush()
+    return result
 
 
 if __name__ == "__main__":

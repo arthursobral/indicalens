@@ -80,7 +80,10 @@ RAG vetorial de sempre (retrieve -> generate).
    python -m src.indicator_analyst
    python -m src.revisions
    ```
-5. Pergunte:
+5. (Opcional) Tracing com [Langfuse](https://cloud.langfuse.com): preencha
+   `LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY` no `.env` para ver, por pergunta,
+   cada passo do grafo, latencia e tokens. Sem as chaves, nada e enviado.
+6. Pergunte:
    ```bash
    python -m src.qa_agent "Qual foi a variacao mensal do IPCA no ultimo mes disponivel?"
    python -m src.qa_agent "Qual foi a taxa de desocupacao mais recente?"
