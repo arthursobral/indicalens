@@ -99,6 +99,80 @@ def _oracle_correlation(x_raw: dict, ipca: dict, selic: bool) -> dict:
     return {"lag": best[0], "r": best[1], "n": best[2], "r0": r0, "n0": n0}
 
 
+def _revision_effect_metrics(failures: list) -> dict:
+    import bisect
+    import random
+    from datetime import timedelta
+
+    import numpy as np
+
+    from src import revision_effects as fx
+    from src.revisions import load_vintages, same_age_revisions
+
+    m = {}
+    vint = load_vintages()
+    k1 = {r["period"]: r["revision"] for r in same_age_revisions(vint, 1)}
+    k4 = {r["period"]: r["revision"] for r in same_age_revisions(vint, 4)}
+    # facts read by hand from the booklets: 2023.II 3.4 (own release) -> 3.5 (next); 2022.III 3.6 -> 4.3 (4 releases later)
+    facts = [k1.get("202302") == 0.1, k4.get("202203") == 0.7, len(vint) == 26, len(k1) == 25, len(k4) == 22,
+             sum(v != 0 for v in k1.values()) == 5, sum(v > 0 for v in k4.values()) == 18]
+    m["vintage_fact_accuracy"] = _rate(sum(facts), len(facts))
+    if not all(facts):
+        failures.append({"question": "vintage facts", "expected": "all 7 true", "got": str(facts)})
+
+    evs = fx.events(vint)
+    selic, usd = fx.load_market(evs)
+    today = fx.date(2026, 9, 20)  # fixed so the harness does not drift with the calendar
+    got = fx.analyze(evs, selic, usd, today)
+
+    # independent oracle: numpy + bisect + own average ranks; same definitions, different code
+    def step(series, d):
+        days = [x[0] for x in series]
+        return series[bisect.bisect_right(days, d) - 1][1]
+
+    def ranks(a):
+        a = np.asarray(a, float)
+        order = a.argsort()
+        rk = np.empty(len(a))
+        rk[order] = np.arange(len(a))
+        for v in np.unique(a):
+            rk[a == v] = rk[a == v].mean()
+        return rk
+
+    ok = 0
+    for name, ser, fn, after in (("selic_depois", selic, lambda a, b: a - b, True), ("selic_antes", selic, lambda a, b: a - b, False),
+                                 ("dolar_depois", usd, lambda a, b: 100 * (a / b - 1), True), ("dolar_antes", usd, lambda a, b: 100 * (a / b - 1), False)):
+        x, y = [], []
+        for e in evs:
+            if after and e["date"] + timedelta(days=fx.H) > today:
+                continue
+            d0, d1 = (e["date"], e["date"] + timedelta(days=fx.H)) if after else (e["date"] - timedelta(days=fx.H), e["date"])
+            x.append(e["news"])
+            y.append(fn(step(ser, d1), step(ser, d0)))
+        r = float(np.corrcoef(x, y)[0, 1])
+        rho = float(np.corrcoef(ranks(x), ranks(y))[0, 1])
+        g = got[name]
+        good = g["n"] == len(x) and abs(g["r"] - r) < 1e-9 and abs(g["rho"] - rho) < 1e-9
+        ok += good
+        if not good:
+            failures.append({"question": f"revision effect {name}", "expected": f"n={len(x)} r={r:.6f} rho={rho:.6f}", "got": str({k: g[k] for k in ("n", "r", "rho")})})
+    m["revision_effect_oracle_match"] = _rate(ok, 4)
+
+    # planted effect must be found, pure noise must not (same 25-event, mostly-zero-news shape as the real data)
+    shape = [e["news"] for e in evs]
+    hit = fp = 0
+    seeds = range(40)
+    for s in seeds:
+        rnd = random.Random(s)
+        planted = [(x, 1.5 * x + rnd.gauss(0, 0.5)) for x in shape]
+        null = [(x, rnd.gauss(0, 1)) for x in shape]
+        hit += fx.stats(planted, perms=500, seed=s)["p_perm"] < 0.05
+        fp += fx.stats(null, perms=500, seed=s)["p_perm"] < 0.05
+    m["revision_effect_power"] = _rate(hit, len(seeds))
+    m["revision_effect_null_specificity"] = _rate(len(seeds) - fp, len(seeds))
+    return m
+
+
 def run_bcb() -> tuple[dict, dict, list]:
     import random
 
@@ -175,6 +249,9 @@ def run_bcb() -> tuple[dict, dict, list]:
         metrics[f"corr_route_specificity_{label}"] = _rate(sum(g for _, g in neg), len(neg))
         failures += [{"question": q, "expected": "recognized as correlation", "got": "not recognized"} for q, g in pos if not g]
         failures += [{"question": q, "expected": "not correlation", "got": "recognized as correlation"} for q, g in neg if not g]
+
+    # 6. GDP revisions vs Selic/dollar: hand-verified vintage facts, independent numpy oracle, planted effect/null
+    metrics.update(_revision_effect_metrics(failures))
 
     counts = {"bcb_golden": len(cases.BCB_GOLDEN), "bcb_refusals": len(cases.BCB_REFUSALS), "planted_seeds": len(seeds),
               "corr_route_dev": len(cases.CORR_ROUTE_DEV), "corr_route_heldout": len(cases.CORR_ROUTE_TEST)}

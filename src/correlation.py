@@ -130,6 +130,10 @@ def detect(question: str) -> tuple[str | None, str | None] | None:
 
 
 def answer(question: str) -> dict | None:
+    from src import revision_effects  # GDP revisions vs Selic/exchange rate: a different analysis, same agent
+
+    if revision_effects.matches(_norm(question)):
+        return revision_effects.answer(question)
     hit = detect(question)
     if hit is None:
         return None

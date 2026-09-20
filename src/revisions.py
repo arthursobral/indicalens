@@ -16,8 +16,10 @@ Usage:
 """
 
 import io
+import json
 import re
 import sys
+from pathlib import Path
 
 import requests
 from pypdf import PdfReader
@@ -69,6 +71,66 @@ def first_release_values() -> dict[str, float]:
                 values[period] = value
                 break
     return values
+
+
+VINTAGES_FILE = Path(__file__).resolve().parent.parent / "data" / "pib_vintages.json"
+_ROMAN = {"I": 1, "II": 2, "III": 3, "IV": 4}
+
+
+def parse_vintage_table(text: str) -> dict[str, float] | None:
+    """Table I.1 of a booklet: year-on-year GDP growth of the LAST FIVE quarters as the IBGE had
+    them on that release, e.g. {'202204': 2.7, ..., '202304': 2.1} (oldest first). Only whitespace is
+    collapsed here: the digit-gluing used for the headline would merge neighbouring numbers."""
+    t = re.sub(r"\s+", " ", text)
+    h = re.search(r"((?:\d{4}\.(?:IV|III|II|I) ?){5})", t)
+    m = re.search(r"mesmo trimestre do ano anterior < ?Anexo: ?Tabela 2 ?> ?" + " ".join([r"(-?\d+,\d)"] * 5), t)
+    if not (h and m):
+        return None
+    quarters = re.findall(r"(\d{4})\.(IV|III|II|I)", h.group(1))
+    return {f"{y}{_ROMAN[q]:02d}": float(v.replace(",", ".")) for (y, q), v in zip(quarters, m.groups())}
+
+
+def parse_release_date(text: str) -> str | None:
+    """ISO date from the cover ('Publicado em 29/05/2020' or 'Atualizado em 01/03/2024')."""
+    m = re.search(r"(?:Publicado|Atualizado) em (\d{2})/(\d{2})/(\d{4})", text)
+    return f"{m.group(3)}-{m.group(2)}-{m.group(1)}" if m else None
+
+
+def build_vintages() -> list[dict]:
+    """[{period, released, table}] for every booklet. Cross-check: the table's last column (the
+    booklet's own quarter) must equal the headline value parsed independently from the text."""
+    out = []
+    for period, url in list_booklets():
+        pdf = PdfReader(io.BytesIO(requests.get(url, timeout=90).content))
+        table = next((t for pg in pdf.pages[2:8] if (t := parse_vintage_table(pg.extract_text()))), None)
+        headline = next((v for pg in pdf.pages[2:6] if (v := parse_headline(pg.extract_text())) is not None), None)
+        released = parse_release_date(pdf.pages[0].extract_text())
+        if table is None or released is None or table.get(period) != headline:
+            raise ValueError(f"{period}: vintage table/date not parsed or disagrees with headline "
+                             f"(table={table and table.get(period)}, headline={headline}, released={released})")
+        out.append({"period": period, "released": released, "table": table})
+    return out
+
+
+def load_vintages() -> list[dict]:
+    return json.loads(VINTAGES_FILE.read_text(encoding="utf-8"))
+
+
+def same_age_revisions(vintages: list[dict], k: int) -> list[dict]:
+    """Revision of quarter Q at a FIXED age: its value in the booklet k releases later minus its first
+    release. Unlike 'current - first' this does not grow with how long ago the quarter was published.
+    Event date = release of that later booklet (when the revision became public)."""
+    by = {v["period"]: v for v in vintages}
+    order = [v["period"] for v in vintages]
+    rows = []
+    for i, q in enumerate(order):
+        if i + k >= len(order):
+            break
+        later = by[order[i + k]]
+        if q in later["table"]:
+            rows.append({"period": q, "first": by[q]["table"][q], "later": later["table"][q],
+                         "revision": round(later["table"][q] - by[q]["table"][q], 1), "event_date": later["released"]})
+    return rows
 
 
 def build_revisions() -> list[dict]:
@@ -137,6 +199,12 @@ def run() -> int:
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
+    if "--vintages" in sys.argv:  # refresh data/pib_vintages.json (needed when a new booklet is published)
+        v = build_vintages()
+        VINTAGES_FILE.parent.mkdir(exist_ok=True)
+        VINTAGES_FILE.write_text(json.dumps(v, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"{len(v)} vintages saved to {VINTAGES_FILE}")
+        raise SystemExit(0)
     rows = build_revisions()
     revised = [r for r in rows if r["revision"] != 0]
     for r in rows:
