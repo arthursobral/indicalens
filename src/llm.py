@@ -6,8 +6,10 @@ plain `requests.post` avoids pulling in either vendor's SDK.
 import requests
 
 from src.config import GROQ_API_KEY, GROQ_MODEL, OLLAMA_HOST, OLLAMA_MODEL
+from src.tracing import observe, record_generation
 
 
+@observe(as_type="generation")
 def chat(system: str, user: str) -> str:
     if GROQ_API_KEY:
         resp = requests.post(
@@ -24,7 +26,10 @@ def chat(system: str, user: str) -> str:
             timeout=60,
         )
         resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
+        body = resp.json()
+        usage = body.get("usage", {})
+        record_generation(model=GROQ_MODEL, usage_details={"input": usage.get("prompt_tokens", 0), "output": usage.get("completion_tokens", 0)})
+        return body["choices"][0]["message"]["content"]
 
     resp = requests.post(
         f"{OLLAMA_HOST}/api/chat",
@@ -40,4 +45,6 @@ def chat(system: str, user: str) -> str:
         timeout=120,
     )
     resp.raise_for_status()
-    return resp.json()["message"]["content"]
+    body = resp.json()
+    record_generation(model=OLLAMA_MODEL, usage_details={"input": body.get("prompt_eval_count", 0), "output": body.get("eval_count", 0)})
+    return body["message"]["content"]
