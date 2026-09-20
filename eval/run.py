@@ -136,6 +136,23 @@ def run_full() -> dict:
         if not ok:
             failures.append({"question": c["answer"], "expected": f"critic: {kind}", "got": status})
 
+    # The Critic against labeled real claims (no LLM calls): the check the
+    # planted cases above cannot give, because those are short and clean.
+    labeled = json.loads((HERE / "critic_labeled.json").read_text(encoding="utf-8"))
+    ok_sup = sup_total = ok_flag = flag_total = 0
+    for item in labeled["items"]:
+        ctx = [{"content": labeled["chunks"][i]} for i in item["chunks"]]
+        flagged = critic.verify_claim(item["claim"], [], ctx)["status"] != "supported"
+        if item["label"] == 1:
+            sup_total += 1
+            ok_sup += not flagged
+        else:
+            flag_total += 1
+            ok_flag += flagged
+            if not flagged:
+                failures.append({"question": item["claim"], "expected": "flagged (label 0)", "got": "supported"})
+    n_labeled = sup_total + flag_total
+
     def pct(xs, p):
         return round(sorted(xs)[min(len(xs) - 1, int(len(xs) * p))], 2) if xs else None
 
@@ -150,9 +167,12 @@ def run_full() -> dict:
             "critic_specificity": _rate(*critic_stats["good"]),
             "critic_recall_wrong_number": _rate(*critic_stats["wrong"]),
             "critic_recall_invented": _rate(*critic_stats["invented"]),
+            "critic_real_specificity": _rate(ok_sup, sup_total),
+            "critic_real_recall": _rate(ok_flag, flag_total),
+            "labeled_faithfulness": _rate(sup_total, n_labeled),
         },
         "counts": {"claims_checked": len(verdicts_all), **{k: v[1] for k, v in counts.items()},
-                   **{f"critic_{k}": v[1] for k, v in critic_stats.items()}},
+                   **{f"critic_{k}": v[1] for k, v in critic_stats.items()}, "labeled_claims": n_labeled},
         "latency_seconds": {k: {"p50": pct(v, 0.5), "p95": pct(v, 0.95), "n": len(v)} for k, v in latency.items()},
         "failures": failures,
     }
