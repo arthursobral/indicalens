@@ -9,6 +9,16 @@ from src.config import GROQ_API_KEY, GROQ_MODEL, OLLAMA_HOST, OLLAMA_MODEL
 from src.tracing import observe, record_generation
 
 
+# running totals of LLM usage in this process; the batch job reads deltas per report
+USAGE = {"calls": 0, "input": 0, "output": 0}
+
+
+def _count(input_tokens: int, output_tokens: int) -> None:
+    USAGE["calls"] += 1
+    USAGE["input"] += input_tokens
+    USAGE["output"] += output_tokens
+
+
 @observe(as_type="generation")
 def chat(system: str, user: str) -> str:
     if GROQ_API_KEY:
@@ -28,6 +38,7 @@ def chat(system: str, user: str) -> str:
         resp.raise_for_status()
         body = resp.json()
         usage = body.get("usage", {})
+        _count(usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0))
         record_generation(model=GROQ_MODEL, usage_details={"input": usage.get("prompt_tokens", 0), "output": usage.get("completion_tokens", 0)})
         return body["choices"][0]["message"]["content"]
 
@@ -46,5 +57,6 @@ def chat(system: str, user: str) -> str:
     )
     resp.raise_for_status()
     body = resp.json()
+    _count(body.get("prompt_eval_count", 0), body.get("eval_count", 0))
     record_generation(model=OLLAMA_MODEL, usage_details={"input": body.get("prompt_eval_count", 0), "output": body.get("eval_count", 0)})
     return body["message"]["content"]
