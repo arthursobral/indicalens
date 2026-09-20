@@ -65,6 +65,21 @@ def test_history_is_redrawn_cleanly_on_later_turns():
     assert not at.get("help"), "an object was echoed into the page"
     texts = " ".join(m.value for m in at.markdown)
     assert "DeltaGenerator" not in texts and "primeira" in texts and "resposta para: segunda" in texts
+    assert texts.index("resposta para: segunda") < texts.index("resposta para: primeira")  # newest conversation first
+    assert len(at.chat_input) == 1
+
+
+def test_zero_claims_is_not_shown_as_all_clear():
+    old = batch.ask_once
+    batch.ask_once = lambda q, *a, **k: {**_fake(q), "claims": 0, "flagged": 0, "answer": "Não há dados suficientes."}
+    os.environ.update({"DATABASE_URL": "postgresql://x", "GROQ_API_KEY": "x"})
+    try:
+        at = AppTest.from_file(APP, default_timeout=30).run()
+        at.chat_input[0].set_value("sem dados").run()
+    finally:
+        batch.ask_once = old
+    html = " ".join(m.value for m in at.markdown)
+    assert "sem afirmações para verificar" in html and "chip-ok" not in html.split("Busca + LLM + Critic", 1)[1]
 
 
 def test_session_cap_blocks_extra_questions():

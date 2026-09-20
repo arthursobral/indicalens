@@ -90,6 +90,8 @@ def _result_chips(item: dict) -> str:
         chips.append(chip(f"{item['tokens_in']} → {item['tokens_out']} tokens"))
         if not qa_agent.critic_enabled():
             chips.append(chip("Critic: desativado nesta instância", "warn"))
+        elif not item["claims"]:  # nothing was checked: must not look like "checked and fine"
+            chips.append(chip("Critic: sem afirmações para verificar"))
         elif item["flagged"]:
             chips.append(chip(f"Critic: {item['flagged']} de {item['claims']} afirmações sinalizadas", "warn"))
         else:
@@ -140,31 +142,29 @@ def _examples_grid() -> None:
 def chat_tab() -> None:
     if "messages" not in st.session_state:
         st.session_state.messages, st.session_state.asked = [], 0
-    history = st.container()  # reserved above the input, so the input stays below the conversation
+    # input on top, conversations newest-first: the newest answer appears right under the input
     question = st.chat_input("Pergunte sobre IPCA, PIB, PNAD, Selic ou câmbio") or st.session_state.pop("pending", None)
-    with history:
-        for m in st.session_state.messages:
-            with _msg(m["role"]):
-                if m["role"] == "assistant":
-                    _render(m["item"])
-                else:  # a bare `a if c else b` expression would be echoed by Streamlit's "magic"
-                    st.markdown(m["text"])
-        if not st.session_state.messages and not question:
-            _examples_grid()
-        if not question:
-            return
-        st.session_state.messages.append({"role": "user", "text": question})
+    if not st.session_state.messages and not question:
+        _examples_grid()
+        return
+    earlier = list(zip(st.session_state.messages[::2], st.session_state.messages[1::2]))  # (user, assistant) pairs
+    if question:
         with _msg("user"):
             st.markdown(question)
         with _msg("assistant"):
             if st.session_state.asked >= MAX_QUESTIONS:
                 st.warning(f"Limite de {MAX_QUESTIONS} perguntas por sessão nesta demo (protege a cota gratuita do LLM). Recarregue a página para recomeçar.")
-                return
-            st.session_state.asked += 1
-            with st.spinner("Consultando as fontes..."):
-                item = _ask(question)
-            _render(item)
-        st.session_state.messages.append({"role": "assistant", "item": item})
+            else:
+                st.session_state.asked += 1
+                with st.spinner("Consultando as fontes..."):
+                    item = _ask(question)
+                _render(item)
+                st.session_state.messages += [{"role": "user", "text": question}, {"role": "assistant", "item": item}]
+    for user, assistant in reversed(earlier):
+        with _msg("user"):
+            st.markdown(user["text"])
+        with _msg("assistant"):
+            _render(assistant["item"])
 
 
 def reports_tab() -> None:
