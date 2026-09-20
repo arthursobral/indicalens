@@ -79,6 +79,9 @@ def lookup_cases() -> list[dict]:
 
 # Questions the Table Agent must decline (return None) instead of guessing.
 REFUSAL_CASES = [
+    # relational / non-IBGE-series questions: must not return the latest value of the one series named
+    "A inflacao se move junto com a Selic?", "O cambio afeta o IPCA?", "Qual a relacao entre juros e desocupacao?",
+    "O dolar influencia a inflacao?", "A taxa de desocupacao depende da Selic?",
     # a bare year is ambiguous for monthly / quarterly / moving-quarter series
     "Qual foi o IPCA em 2010?", "Qual foi o PIB em 1999?", "Qual foi a taxa de desocupacao em 2024?",
     "Qual foi o rendimento medio em 2020?", "Qual foi a taxa de informalidade em 2022?",
