@@ -183,6 +183,17 @@ QA_AGENT_CASES = [
         f"score={r['context'][0]['score']}, resposta={r['answer']!r}",
     )),
 
+    # revision lookups go to the Revision Agent (fixed score 1.0), not RAG or
+    # the plain GDP lookup
+    ("O PIB do 2 trimestre de 2022 foi revisado?", lambda r: (
+        r["context"][0]["score"] == 1.0 and "3.2%" in r["answer"] and "3.5%" in r["answer"],
+        f"resposta={r['answer']!r}",
+    )),
+    ("O PIB do 2 trimestre de 2020 sofreu revisao?", lambda r: (
+        r["context"][0]["score"] == 1.0 and "-11.4%" in r["answer"] and "para cima" in r["answer"],
+        f"resposta={r['answer']!r}",
+    )),
+
     # analytical/out-of-range/out-of-domain questions the Table Agent
     # declines must, in the full pipeline, come back admitting lack of
     # data - never a fabricated explanation
