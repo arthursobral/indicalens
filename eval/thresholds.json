@@ -11,7 +11,11 @@
     "corr_route_recall_dev": 1.0,
     "corr_route_specificity_dev": 1.0,
     "corr_route_recall_heldout": 0.85,
-    "corr_route_specificity_heldout": 0.8
+    "corr_route_specificity_heldout": 0.8,
+    "vintage_fact_accuracy": 1.0,
+    "revision_effect_oracle_match": 1.0,
+    "revision_effect_power": 0.9,
+    "revision_effect_null_specificity": 0.9
   },
   "full": {
     "routing_accuracy": 1.0,

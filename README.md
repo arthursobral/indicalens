@@ -15,7 +15,7 @@ para Selic e cambio.
 
 ## Status
 
-Semanas 9-10 de 12 (Correlation Agent, harness e batch prontos; proximo: UI e deploy); antes disso, semanas 3-8: alem da ingestao tabular e do texto corrido das semanas
+Semanas 9-10 de 12 concluidas (Correlation Agent, harness, batch e revisoes do PIB x Selic/cambio); proximo: UI e deploy; antes disso, semanas 3-8: alem da ingestao tabular e do texto corrido das semanas
 1-2, agora tem um Table Agent (lookup direto e deterministico pra perguntas
 numericas) e um Indicator Analyst Agent (classifica cada comentario por tema
 via zero-shot). Ver [docs/03-roadmap.md](docs/03-roadmap.md) para o plano
@@ -49,6 +49,10 @@ pergunta do usuario --> src/qa_agent.py (LangGraph)
   divulgacao (cadernos do FTP vs. valor atual da API).
 - `src/critic.py`: depois do RAG, checa cada afirmacao da resposta contra os
   trechos recuperados (NLI local) e sinaliza o que nao tem suporte.
+- `src/revision_effects.py`: as revisoes do PIB antecedem movimentos da Selic ou do
+  dolar? Revisao com mesma idade (cadernos do IBGE em `data/pib_vintages.json`),
+  teste de permutacao e controle "antes"; resultado atual: sem evidencia.
+  Ex: `python -m src.qa_agent "As revisoes do PIB afetam a Selic?"`.
 - `src/batch.py`: gera um relatorio por indicador (perguntas fixas pelo grafo
   inteiro) com tempo, tokens e alertas do Critic por relatorio.
   `python -m src.batch [--only IPCA,PIB]` -> `reports/*.md` + `summary.json`.
