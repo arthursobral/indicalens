@@ -53,8 +53,8 @@ def test_question_is_answered_and_shown():
     assert not at.exception
     texts = " ".join(m.value for m in at.markdown)
     assert "Qual o IPCA?" in texts and "resposta para: Qual o IPCA?" in texts
-    captions = " ".join(c.value for c in at.caption)
-    assert "Critic: 1 de 3" in captions and "busca + LLM + Critic" in captions
+    chips = " ".join(m.value for m in at.markdown)
+    assert "Critic: 1 de 3 afirmações sinalizadas" in chips and "Busca + LLM + Critic" in chips
 
 
 def test_session_cap_blocks_extra_questions():
@@ -77,7 +77,7 @@ def test_critic_switch_is_explicit():
         out = qa_agent.verify({"answer": "resposta", "context": [], "verdicts": []})  # must not load the NLI model
         assert out["verdicts"] == [] and "Critic desativado" in out["answer"]
         at = _run({"DATABASE_URL": "postgresql://x", "GROQ_API_KEY": "x"}, ["q"])
-        assert "Critic: desativado nesta instância" in " ".join(c.value for c in at.caption)
+        assert "Critic: desativado nesta instância" in " ".join(m.value for m in at.markdown)
     finally:
         os.environ.pop("CRITIC_ENABLED") if old is None else os.environ.__setitem__("CRITIC_ENABLED", old)
     assert qa_agent.critic_enabled()

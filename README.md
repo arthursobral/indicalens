@@ -77,7 +77,7 @@ RAG vetorial de sempre (retrieve -> generate).
 .venv/Scripts/python -m streamlit run app.py
 ```
 
-Abas: **Perguntas** (chat com o mesmo grafo da CLI, mostrando caminho, tempo, tokens,
+Visual proprio (tema escuro, marca em SVG, etiquetas por caminho e status do Critic; funciona no celular). Abas: **Perguntas** (chat com o mesmo grafo da CLI, mostrando caminho, tempo, tokens,
 alertas do Critic e fontes), **Relatorios** (batch por indicador, com download do `.md`) e
 **Sobre** (limites honestos). Variaveis opcionais: `MAX_QUESTIONS_PER_SESSION` (padrao 25) e
 `CRITIC_ENABLED=0` para hospedar com pouca memoria (o modelo do Critic usa ~1 GB). Passos de
