@@ -83,6 +83,15 @@ enfraquecidas; o GitHub secret scanning e o push protection tambem estao ativos.
 mostra a um visitante o texto bruto de um erro (pode conter host ou usuario do banco): ele vai
 so para o log do servidor.
 
+## Demo online
+
+**https://indicalens.streamlit.app/** (Streamlit Community Cloud, plano gratuito). Verificado no
+site publico em 20/09/2026: consultas diretas (IPCA mais recente, 1,6 s) e correlacao (Cambio x
+IPCA, r = 0,26, 3,7 s) funcionam. **Perguntas que usam o LLM e o Critic (comentarios do IBGE) ainda
+nao foram confirmadas online**: a primeira nao terminou em mais de 5 minutos (na nuvem os modelos
+locais precisam ser baixados na primeira pergunta). O app dorme apos alguns dias sem visitas; a
+primeira visita o acorda (~30 s). Limite de 15 perguntas por sessao para proteger a cota gratuita.
+
 ## Interface web
 
 ```bash
