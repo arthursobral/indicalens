@@ -87,9 +87,11 @@ so para o log do servidor.
 
 **https://indicalens.streamlit.app/** (Streamlit Community Cloud, plano gratuito). Verificado no
 site publico em 20/09/2026: consultas diretas (IPCA mais recente, 1,6 s) e correlacao (Cambio x
-IPCA, r = 0,26, 3,7 s) funcionam. **Perguntas que usam o LLM e o Critic (comentarios do IBGE) ainda
-nao foram confirmadas online**: a primeira nao terminou em mais de 5 minutos (na nuvem os modelos
-locais precisam ser baixados na primeira pergunta). O app dorme apos alguns dias sem visitas; a
+IPCA, r = 0,26, 3,7 s) funcionam. **Perguntas que usam o LLM e o Critic (comentarios do IBGE) funcionam, mas sao muito lentas
+na nuvem gratuita**: a 1a levou 294 s (baixar e carregar os modelos, ~2 min, mais a inferencia) e a
+2a, ja com os modelos carregados, passou de 100 s sem terminar (localmente: 10-30 s). O gargalo e
+a CPU da hospedagem gratuita (o Critic roda um modelo NLI local); os logs nao mostram erro nem
+falta de memoria. Em investigacao. O app dorme apos alguns dias sem visitas; a
 primeira visita o acorda (~30 s). Limite de 15 perguntas por sessao para proteger a cota gratuita.
 
 ## Interface web
