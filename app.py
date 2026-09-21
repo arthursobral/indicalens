@@ -159,7 +159,7 @@ def chat_tab() -> None:
                 st.warning(f"Limite de {MAX_QUESTIONS} perguntas por sessão nesta demo (protege a cota gratuita do LLM). Recarregue a página para recomeçar.")
             else:
                 st.session_state.asked += 1
-                with st.spinner("Consultando as fontes..."):
+                with st.spinner("Consultando as fontes... (perguntas com LLM podem levar alguns minutos: LLM e hospedagem gratuitos)"):
                     item = _ask(question)
                 _render(item)
                 st.session_state.messages += [{"role": "user", "text": question}, {"role": "assistant", "item": item}]
