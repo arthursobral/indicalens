@@ -14,7 +14,7 @@ O IndicaLens lê dados públicos do **IBGE** (IPCA, PIB, PNAD Contínua, pobreza
 
 - **LLMs inventam números.** Em economia, um número errado com cara de certo é pior que nenhuma resposta. A saída aqui é *não deixar o modelo produzir o número*: valores vêm de consulta por código, e o LLM só entra onde há texto para resumir.
 - **Análise de indicadores é trabalho manual e espalhado.** Achar o valor, o período certo, a série certa, o caderno em PDF do IBGE e cruzar com Selic e câmbio leva tempo. Aqui é uma pergunta.
-- **Portfólio com evidência.** Em vez de "usei um LLM", o repositório mostra RAG com verificação, orquestração multi-agente (LangGraph), um harness de avaliação que barra regressões no CI e resultados estatísticos reportados com honestidade, inclusive os negativos.
+- **Relacionar séries é fácil de fazer errado.** Correlação entre duas séries que só sobem parece forte sem ser real, e testar várias defasagens infla o acaso. Aqui as relações são calculadas com cuidado (variações em vez de níveis, intervalos de confiança, correção para múltiplas defasagens) e o sistema diz **"não há evidência"** quando é o caso, em vez de forçar uma conclusão.
 
 Custo de manutenção e de demonstração: **US$ 0** (Supabase, Groq, Streamlit Cloud e GitHub Actions em planos gratuitos; os modelos de embeddings e de NLI rodam localmente).
 
