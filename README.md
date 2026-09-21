@@ -143,7 +143,7 @@ O gate offline do CI tem 16 métricas e reprova o PR se qualquer uma cair abaixo
 
 ## Limites conhecidos
 
-- **Demo na nuvem gratuita: perguntas com LLM são muito lentas.** Veja [Demo online](#demo-online).
+- **Demo na nuvem gratuita: perguntas com LLM podem demorar** (LLM e hospedagem gratuitos). Veja [Demo online](#demo-online).
 - O faithfulness *automático* em respostas novas (0,68) é um piso pessimista: o Critic sinaliza cerca de 1 em cada 3 afirmações, enquanto ~6% são erros de verdade. O número confiável vem das afirmações rotuladas, e são só 69, com 4 erros reais (um recall de 3 de 4 não tem poder estatístico).
 - Correlação não prova causa (a Selic também reage à inflação), e meses vizinhos não são independentes, então os intervalos tendem a ser otimistas.
 - Correlações só com o IPCA por enquanto; PIB e PNAD exigem tratamento extra (trimestres móveis sobrepostos, frequência trimestral).
@@ -158,10 +158,9 @@ O gate offline do CI tem 16 métricas e reprova o PR se qualquer uma cair abaixo
 
 **<https://indicalens.streamlit.app/>**, no plano gratuito do Streamlit Community Cloud.
 
-- **Consultas diretas e correlação:** funcionam no site público (IPCA mais recente em ~1,6 s; câmbio × IPCA em ~3,7 s).
-- **Perguntas com LLM + Critic:** funcionam, mas são **muito lentas na hospedagem gratuita**: a primeira levou 294 s (baixar e carregar os modelos, ~2 min, mais a inferência) e a segunda, com os modelos carregados, passou de 100 s sem terminar (localmente: 10 a 30 s). Os logs não mostram erro nem falta de memória; o gargalo é a CPU. Em investigação.
-- O app dorme depois de alguns dias sem visitas; a primeira visita o acorda (~30 s).
-- Limite de 15 perguntas por sessão, para proteger a cota gratuita do LLM.
+> **Aviso:** o projeto usa um LLM gratuito (Groq) e roda em hospedagem gratuita, com pouca CPU. Por isso **as perguntas que usam o LLM e o Critic (comentários do IBGE) podem demorar, às vezes alguns minutos** (a primeira, que ainda carrega os modelos, foi a mais lenta). Não há muito o que melhorar dentro dessas restrições de custo zero. As consultas diretas e as correlações, que não usam LLM, respondem em poucos segundos.
+
+O app dorme depois de alguns dias sem visitas (a primeira visita o acorda, ~30 s) e há um limite de 15 perguntas por sessão, para proteger a cota gratuita do LLM.
 
 ---
 
@@ -234,6 +233,6 @@ Segredos (`DATABASE_URL`, `GROQ_API_KEY`, chaves do Langfuse) ficam só no `.env
 
 Plano de 12 semanas: ingestão e RAG (1–2), Table Agent e classificação de temas (3–4), Revision Agent e Critic (5–6), harness de avaliação, gate no CI e Langfuse (7–8), Correlation Agent, revisões × Selic/câmbio e batch (9–10), interface e deploy (11–12).
 
-**Feito:** todos os agentes, o harness, o CI, a interface com visual próprio e a demo no ar. **Em aberto:** a latência do caminho com LLM na hospedagem gratuita; comentários sobre informalidade na busca; um segundo rotulador humano e um conjunto de teste separado para o Critic; correlação com outros indicadores além do IPCA.
+**Feito:** todos os agentes, o harness, o CI, a interface com visual próprio e a demo no ar. **Em aberto:** comentários sobre informalidade na busca; um segundo rotulador humano e um conjunto de teste separado para o Critic; correlação com outros indicadores além do IPCA.
 
 Dados: [IBGE/SIDRA](https://servicodados.ibge.gov.br/api/docs/agregados) e [Banco Central (SGS)](https://api.bcb.gov.br/dados/serie), públicos e sem chave de API.
